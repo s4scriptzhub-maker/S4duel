@@ -140,3 +140,7 @@ task.spawn(function()
     while true do
         local fps = math.floor(1 / RunService.RenderStepped:Wait())
         local ping = math.floor(player:GetNetworkPing() * 1000)
+        stats.Text = string.format("FPS: %d  |  PING: %dms", fps, ping)
+        task.wait(0.5)
+    end
+end)
