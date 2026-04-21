@@ -2,140 +2,185 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local Player = Players.LocalPlayer
+local playerGui = Player:WaitForChild("PlayerGui")
 
 -- === PREMIUM CONFIGURATION ===
 local NEON_PURPLE = Color3.fromRGB(190, 0, 255)
 local NEON_BLUE = Color3.fromRGB(0, 200, 255)
 local BG_COLOR = Color3.fromRGB(10, 8, 15)
-local BG_TRANSPARENCY = 0.35
-local BORDER_THICKNESS = 1.4
+local BORDER_THICKNESS = 1.2 -- Premium thin lines
 
 local guiLocked = false
-
--- === FEATURES STATE (FROM 22s HUB) ===
-local Features = {
-    ["Speed Boost"] = false,
-    ["Anti-Ragdoll"] = false,
-    ["SpinBot"] = false,
-    ["Auto Steal"] = false,
-    ["Optimizer"] = false,
-    ["Spam Bat"] = false,
-    ["Bat Aimbot"] = false,
-    ["Galaxy Mode"] = false
+local Connections = {}
+local Enabled = {
+    SpeedBoost = false,
+    AntiRagdoll = false,
+    SpinBot = false,
+    AutoSteal = false,
+    Optimizer = false,
+    SpamBat = false,
+    BatAimbot = false,
+    Galaxy = false
 }
 
--- === DRAGGING SYSTEM ===
-local function makeDraggable(frame)
-    local dragging, dragInput, dragStart, startPos
-    frame.InputBegan:Connect(function(input)
-        if guiLocked then return end
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
+-- Logistic Values from 22s Hub [cite: 2]
+local Values = {
+    BoostSpeed = 30,
+    SpinSpeed = 30,
+    STEAL_RADIUS = 20,
+    STEAL_DURATION = 1.3,
+    DEFAULT_GRAVITY = 196.2,
+    GalaxyGravityPercent = 70
+}
+
+-- === CORE UTILITIES [cite: 6, 7] ===
+local function getMovementDirection()
+    local hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+    return hum and hum.MoveDirection or Vector3.zero
+end
+
+local function findBat()
+    local c = Player.Character
+    if not c then return nil end
+    for _, ch in ipairs(c:GetChildren()) do
+        if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end
+    end
+    local bp = Player:FindFirstChildOfClass("Backpack")
+    if bp then
+        for _, ch in ipairs(bp:GetChildren()) do
+            if ch:IsA("Tool") and ch.Name:lower():find("bat") then return ch end
+        end
+    end
+    return nil
+end
+
+-- === FUNCTIONAL LOGISTICS [cite: 1, 7, 11, 13, 27, 33] ===
+
+-- 1. Anti-Ragdoll [cite: 27]
+local function toggleAntiRagdoll(state)
+    if not state then 
+        if Connections.antiRagdoll then Connections.antiRagdoll:Disconnect() end
+        return 
+    end
+    Connections.antiRagdoll = RunService.Heartbeat:Connect(function()
+        local hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+        if hum and (hum:GetState() == Enum.HumanoidStateType.Ragdoll or hum:GetState() == Enum.HumanoidStateType.FallingDown) then
+            hum:ChangeState(Enum.HumanoidStateType.Running)
         end
     end)
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+-- 2. Bat Aimbot [cite: 11]
+local function toggleBatAimbot(state)
+    if not state then
+        if Connections.batAimbot then Connections.batAimbot:Disconnect() end
+        return
+    end
+    Connections.batAimbot = RunService.Heartbeat:Connect(function()
+        local h = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        if not h then return end
+        local nearest, dist = nil, math.huge
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local d = (p.Character.HumanoidRootPart.Position - h.Position).Magnitude
+                if d < dist then dist = d nearest = p.Character.HumanoidRootPart end
+            end
+        end
+        if nearest then
+            local dir = (nearest.Position - h.Position).Unit
+            h.AssemblyLinearVelocity = Vector3.new(dir.X * 55, h.AssemblyLinearVelocity.Y, dir.Z * 55)
         end
     end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
+end
+
+-- 3. Speed Boost [cite: 18]
+local function toggleSpeed(state)
+    if not state then
+        if Connections.speed then Connections.speed:Disconnect() end
+        return
+    end
+    Connections.speed = RunService.Heartbeat:Connect(function()
+        local h = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+        local md = getMovementDirection()
+        if h and md.Magnitude > 0.1 then
+            h.AssemblyLinearVelocity = Vector3.new(md.X * Values.BoostSpeed, h.AssemblyLinearVelocity.Y, md.Z * Values.BoostSpeed)
         end
     end)
 end
 
 -- === UI BUILDER ===
 local screenGui = Instance.new("ScreenGui", playerGui)
-screenGui.Name = "S4duels_22s_Premium"
 screenGui.ResetOnSpawn = false
 
-local function createPremiumFrame(name, size, pos, accentColor)
-    local frame = Instance.new("Frame", screenGui)
-    frame.Name = name; frame.Size = size; frame.Position = pos
-    frame.BackgroundColor3 = BG_COLOR; frame.BackgroundTransparency = BG_TRANSPARENCY
-    frame.BorderSizePixel = 0; frame.Active = true
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
-    local stroke = Instance.new("UIStroke", frame)
-    stroke.Thickness = BORDER_THICKNESS; stroke.Color = accentColor or NEON_PURPLE
-    return frame, stroke
+local function createFrame(name, size, pos, accent)
+    local f = Instance.new("Frame", screenGui)
+    f.Name = name; f.Size = size; f.Position = pos
+    f.BackgroundColor3 = BG_COLOR; f.BackgroundTransparency = 0.3
+    f.BorderSizePixel = 0; Instance.new("UICorner", f).CornerRadius = UDim.new(0, 4)
+    local s = Instance.new("UIStroke", f)
+    s.Thickness = BORDER_THICKNESS; s.Color = accent or NEON_PURPLE
+    return f, s
 end
 
--- 1. LOCK GUI
-local lockFrame, lockStroke = createPremiumFrame("LockContainer", UDim2.new(0, 90, 0, 32), UDim2.new(0.5, -240, 0, 50), NEON_BLUE)
-makeDraggable(lockFrame)
-local lockBtn = Instance.new("TextButton", lockFrame)
-lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1; lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1, 1, 1); lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 11
+-- Dragging Logic
+local function makeDraggable(frame)
+    local dragging, dragStart, startPos
+    frame.InputBegan:Connect(function(i)
+        if not guiLocked and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then
+            dragging = true; dragStart = i.Position; startPos = frame.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging then
+            local delta = i.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(i) dragging = false end)
+end
 
--- 2. MAIN HEADER
-local mainFrame = createPremiumFrame("MainHeader", UDim2.new(0, 180, 0, 80), UDim2.new(0.5, -90, 0, 50))
+-- Main Components
+local mainFrame = createFrame("Main", UDim2.new(0, 180, 0, 80), UDim2.new(0.5, -90, 0, 50))
 makeDraggable(mainFrame)
-local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 30); title.Position = UDim2.new(0, 0, 0, 10); title.Text = "S4duels"; title.TextColor3 = Color3.new(1, 1, 1); title.Font = Enum.Font.GothamBold; title.TextSize = 20; title.BackgroundTransparency = 1
-local stats = Instance.new("TextLabel", mainFrame)
-stats.Size = UDim2.new(1, 0, 0, 20); stats.Position = UDim2.new(0, 0, 0, 38); stats.TextColor3 = Color3.fromRGB(150, 150, 150); stats.Font = Enum.Font.Code; stats.TextSize = 11; stats.BackgroundTransparency = 1
-
-local toggleBtn = Instance.new("TextButton", mainFrame)
-toggleBtn.Size = UDim2.new(0, 70, 0, 24); toggleBtn.Position = UDim2.new(0.5, -35, 1, 10); toggleBtn.BackgroundColor3 = BG_COLOR; toggleBtn.Text = "S4HUB"; toggleBtn.TextColor3 = Color3.new(1, 1, 1); toggleBtn.Font = Enum.Font.GothamBold; toggleBtn.TextSize = 11; Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0,4)
-
--- 3. SETTINGS MENU
-local hubFrame = createPremiumFrame("S4HUB_Menu", UDim2.new(0, 400, 0, 320), UDim2.new(0.5, -200, 0.5, -160))
+local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 300), UDim2.new(0.5, -200, 0.5, -150))
 hubFrame.Visible = false
 makeDraggable(hubFrame)
 
+-- Functional Close Button
 local closeBtn = Instance.new("TextButton", hubFrame)
-closeBtn.Size = UDim2.new(0, 24, 0, 24); closeBtn.Position = UDim2.new(1, -30, 0, 10); closeBtn.BackgroundColor3 = Color3.fromRGB(40, 10, 15); closeBtn.Text = "×"; closeBtn.TextColor3 = Color3.new(1, 1, 1); closeBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
-local hubTitle = Instance.new("TextLabel", hubFrame)
-hubTitle.Size = UDim2.new(1, 0, 0, 45); hubTitle.Text = "S4HUB SETTINGS"; hubTitle.TextColor3 = Color3.new(1, 1, 1); hubTitle.Font = Enum.Font.GothamBold; hubTitle.TextSize = 16; hubTitle.BackgroundTransparency = 1
+closeBtn.Size = UDim2.new(0, 24, 0, 24); closeBtn.Position = UDim2.new(1, -30, 0, 10)
+closeBtn.BackgroundColor3 = Color3.fromRGB(40, 10, 15); closeBtn.Text = "×"; closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
+closeBtn.MouseButton1Click:Connect(function() hubFrame.Visible = false end)
 
+-- Settings Grid [cite: 2]
 local scroll = Instance.new("ScrollingFrame", hubFrame)
-scroll.Size = UDim2.new(1, -20, 1, -70); scroll.Position = UDim2.new(0, 10, 0, 55); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0; scroll.ScrollBarThickness = 1
+scroll.Size = UDim2.new(1, -20, 1, -70); scroll.Position = UDim2.new(0, 10, 0, 60); scroll.BackgroundTransparency = 1
 local grid = Instance.new("UIGridLayout", scroll)
 grid.CellSize = UDim2.new(0.48, 0, 0, 40); grid.CellPadding = UDim2.new(0.03, 0, 0, 8)
 
--- === POPULATE BUTTONS WITH 22s LOGISTICS ===
-for name, _ in pairs(Features) do
+for name, _ in pairs(Enabled) do
     local btn = Instance.new("TextButton", scroll)
-    btn.BackgroundColor3 = Color3.fromRGB(20, 15, 25); btn.TextColor3 = Color3.new(1, 1, 1); btn.Text = name; btn.Font = Enum.Font.GothamSemibold; btn.TextSize = 12
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,4)
+    btn.Text = name; btn.BackgroundColor3 = Color3.fromRGB(20, 15, 25); btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamSemibold; btn.TextSize = 12; Instance.new("UICorner", btn)
     local bStroke = Instance.new("UIStroke", btn); bStroke.Color = Color3.fromRGB(60, 60, 70); bStroke.Thickness = 0.8
 
     btn.MouseButton1Click:Connect(function()
-        Features[name] = not Features[name]
-        btn.BackgroundColor3 = Features[name] and Color3.fromRGB(50, 30, 70) or Color3.fromRGB(20, 15, 25)
-        bStroke.Color = Features[name] and NEON_PURPLE or Color3.fromRGB(60, 60, 70)
+        Enabled[name] = not Enabled[name]
+        bStroke.Color = Enabled[name] and NEON_PURPLE or Color3.fromRGB(60, 60, 70)
         
-        -- Logical triggers based on 22s hub file
-        if name == "Optimizer" and Features[name] then
-            -- Simple render optimization
-            for _, v in pairs(game:GetDescendants()) do
-                if v:IsA("PostProcessEffect") then v.Enabled = false end
-            end
-        elseif name == "Anti-Ragdoll" then
-            player.Character.Humanoid.PlatformStand = false
+        -- Logic Triggers [cite: 7, 11, 18, 27]
+        if name == "AntiRagdoll" then toggleAntiRagdoll(Enabled[name])
+        elseif name == "BatAimbot" then toggleBatAimbot(Enabled[name])
+        elseif name == "SpeedBoost" then toggleSpeed(Enabled[name])
         end
     end)
 end
 
--- === GLOBAL LOGIC ===
-toggleBtn.MouseButton1Click:Connect(function() hubFrame.Visible = not hubFrame.Visible end)
-closeBtn.MouseButton1Click:Connect(function() hubFrame.Visible = false end)
-lockBtn.MouseButton1Click:Connect(function()
-    guiLocked = not guiLocked
-    lockBtn.Text = guiLocked and "LOCKED" or "LOCK GUI"
-    lockStroke.Color = guiLocked and Color3.fromRGB(255, 50, 50) or NEON_BLUE
-end)
-
-task.spawn(function()
-    while true do
-        local fps = math.floor(1 / RunService.RenderStepped:Wait())
-        local ping = math.floor(player:GetNetworkPing() * 1000)
-        stats.Text = string.format("FPS: %d  |  PING: %dms", fps, ping)
-        task.wait(0.5)
-    end
-end)
+-- S4HUB Toggle
+local toggle = Instance.new("TextButton", mainFrame)
+toggle.Size = UDim2.new(0, 70, 0, 24); toggle.Position = UDim2.new(0.5, -35, 1, 10)
+toggle.Text = "S4HUB"; toggle.BackgroundColor3 = BG_COLOR; toggle.TextColor3 = Color3.new(1, 1, 1)
+Instance.new("UIStroke", toggle).Color = NEON_PURPLE
+toggle.MouseButton1Click:Connect(function() hubFrame.Visible = not hubFrame.Visible end)
