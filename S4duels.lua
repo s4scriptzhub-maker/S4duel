@@ -1,196 +1,163 @@
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
 
-local player = Players.LocalPlayer
+local Player = Players.LocalPlayer
+local playerGui = Player:WaitForChild("PlayerGui")
 
-local targetSpeed = 29
-local enabled = false
-local connection
+-- === CONFIGURATION & STATE ===
+local NEON_PURPLE = Color3.fromRGB(190, 0, 255)
+local NEON_BLUE = Color3.fromRGB(0, 200, 255)
+local BG_COLOR = Color3.fromRGB(10, 8, 15)
 
-local function enableSpeedBypass()
-    if connection then connection:Disconnect() end
-    
-    connection = RunService.Stepped:Connect(function()
-        if not enabled then return end
-        
-        local character = player.Character
-        if not character then return end
-        
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if not humanoid then return end
-        
-        if humanoid:GetState() == Enum.HumanoidStateType.Running then
-            local rootPart = character:FindFirstChild("HumanoidRootPart")
-            if rootPart then
-                local moveDirection = humanoid.MoveDirection
-                if moveDirection.Magnitude > 0 then
-                    rootPart.Velocity = Vector3.new(
-                        moveDirection.X * targetSpeed,
-                        rootPart.Velocity.Y,
-                        moveDirection.Z * targetSpeed
-                    )
+local guiLocked = false
+local boosterEnabled = false
+local normalSpeed = 60
+local carrySpeed = 29
+local isInteracting = false
+local interactionTime = 0
+
+-- === LOGISTICS: THE "STEAL" DETECTOR ===
+local function isHoldingBrainrot()
+    local char = Player.Character
+    if not char then return false end
+
+    -- 1. Detection by proximity + holding (The 2-second steal logic)
+    if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or UserInputService:IsMouseButtonPressed(Enum.UserInputType.Touch) then
+        interactionTime = interactionTime + task.wait()
+        if interactionTime > 1.5 then -- If holding for 1.5s, trigger carry speed
+            return true
+        end
+    else
+        interactionTime = 0
+    end
+
+    -- 2. Visual Detection (Objects on Head/Torso)
+    local checkAreas = {char:FindFirstChild("Head"), char:FindFirstChild("UpperTorso")}
+    for _, area in pairs(checkAreas) do
+        if area then
+            for _, child in pairs(area:GetChildren()) do
+                if (child:IsA("Model") or child:IsA("BasePart")) and not child:IsA("Accessory") then
+                    return true
                 end
             end
         end
-    end)
-end
-
-local function disableSpeedBypass()
-    if connection then
-        connection:Disconnect()
-        connection = nil
     end
-end
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SpeedBypassGUI"
-screenGui.Parent = player:WaitForChild("PlayerGui")
-
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 200, 0, 120)
-mainFrame.Position = UDim2.new(0, 10, 0, 10)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-mainFrame.BackgroundTransparency = 0.1
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = mainFrame
-
-local title = Instance.new("TextLabel")
-title.Text = "SPEED BYPASS"
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundTransparency = 1
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.Arcade
-title.TextSize = 16
-title.Parent = mainFrame
-
-local toggleButton = Instance.new("TextButton")
-toggleButton.Text = "OFF"
-toggleButton.Size = UDim2.new(0.8, 0, 0, 35)
-toggleButton.Position = UDim2.new(0.1, 0, 0.3, 0)
-toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.Font = Enum.Font.Arcade
-toggleButton.TextSize = 14
-toggleButton.Parent = mainFrame
-
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 6)
-toggleCorner.Parent = toggleButton
-
-local speedLabel = Instance.new("TextLabel")
-speedLabel.Text = "Speed: " .. targetSpeed
-speedLabel.Size = UDim2.new(1, 0, 0, 20)
-speedLabel.Position = UDim2.new(0, 0, 0.7, 0)
-speedLabel.BackgroundTransparency = 1
-speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedLabel.Font = Enum.Font.Arcade
-speedLabel.TextSize = 12
-speedLabel.Parent = mainFrame
-
-local speedSlider = Instance.new("TextBox")
-speedSlider.Text = tostring(targetSpeed)
-speedSlider.Size = UDim2.new(0.8, 0, 0, 25)
-speedSlider.Position = UDim2.new(0.1, 0, 0.8, 0)
-speedSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-speedSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedSlider.Font = Enum.Font.Arcade
-speedSlider.TextSize = 12
-speedSlider.Parent = mainFrame
-
-local sliderCorner = Instance.new("UICorner")
-sliderCorner.CornerRadius = UDim.new(0, 4)
-sliderCorner.Parent = speedSlider
-
-toggleButton.MouseButton1Click:Connect(function()
-    enabled = not enabled
-    
-    if enabled then
-        toggleButton.Text = "ON"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
-        enableSpeedBypass()
-    else
-        toggleButton.Text = "OFF"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-        disableSpeedBypass()
-    end
-end)
-
-speedSlider.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        local newSpeed = tonumber(speedSlider.Text)
-        if newSpeed and newSpeed > 0 and newSpeed <= 200 then
-            targetSpeed = newSpeed
-            speedLabel.Text = "Speed: " .. targetSpeed
-        else
-            speedSlider.Text = tostring(targetSpeed)
+    -- 3. String Detection (Stolen/Money)
+    for _, v in pairs(char:GetDescendants()) do
+        if v.Name == "Stolen" or v:IsA("BillboardGui") or v.Name:find("%$") then
+            return true
         end
     end
+
+    return false
+end
+
+-- === SPEED ENGINE ===
+RunService.Heartbeat:Connect(function()
+    if not boosterEnabled then return end
+    local char = Player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if hrp and hum and hum.MoveDirection.Magnitude > 0.1 then
+        local target = isHoldingBrainrot() and carrySpeed or normalSpeed
+        local vel = hum.MoveDirection * target
+        hrp.AssemblyLinearVelocity = Vector3.new(vel.X, hrp.AssemblyLinearVelocity.Y, vel.Z)
+    end
 end)
 
-player.CharacterAdded:Connect(function()
-    if enabled then
+-- === UI BUILDER ===
+local screenGui = Instance.new("ScreenGui", playerGui)
+screenGui.ResetOnSpawn = false
+
+local function createFrame(name, size, pos, accent)
+    local f = Instance.new("Frame", screenGui)
+    f.Name = name; f.Size = size; f.Position = pos
+    f.BackgroundColor3 = BG_COLOR; f.BackgroundTransparency = 0.3
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 4)
+    local s = Instance.new("UIStroke", f)
+    s.Thickness = 1.2; s.Color = accent or NEON_PURPLE
+    return f, s
+end
+
+-- 1. LOCK GUI
+local lockFrame, lockStroke = createFrame("Lock", UDim2.new(0, 90, 0, 32), UDim2.new(0.5, -240, 0, 50), NEON_BLUE)
+local lockBtn = Instance.new("TextButton", lockFrame)
+lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1; lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1,1,1); lockBtn.Font = "GothamBold"; lockBtn.TextSize = 11
+
+-- 2. MAIN HEADER
+local mainFrame = createFrame("Main", UDim2.new(0, 180, 0, 80), UDim2.new(0.5, -90, 0, 50))
+local title = Instance.new("TextLabel", mainFrame)
+title.Size = UDim2.new(1, 0, 0, 35); title.Text = "S4duels"; title.TextColor3 = Color3.new(1,1,1); title.Font = "GothamBold"; title.BackgroundTransparency = 1
+local stats = Instance.new("TextLabel", mainFrame)
+stats.Size = UDim2.new(1, 0, 0, 20); stats.Position = UDim2.new(0,0,0,38); stats.TextColor3 = Color3.fromRGB(150,150,150); stats.TextSize = 11; stats.BackgroundTransparency = 1
+
+local toggleHub = Instance.new("TextButton", mainFrame)
+toggleHub.Size = UDim2.new(0, 70, 0, 24); toggleHub.Position = UDim2.new(0.5, -35, 1, 10); toggleHub.Text = "S4HUB"; toggleHub.BackgroundColor3 = BG_COLOR; toggleHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", toggleHub)
+
+-- 3. SETTINGS MENU
+local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 300), UDim2.new(0.5, -200, 0.5, -150))
+hubFrame.Visible = false
+local closeHub = Instance.new("TextButton", hubFrame)
+closeHub.Size = UDim2.new(0, 24, 0, 24); closeHub.Position = UDim2.new(1, -30, 0, 10); closeHub.Text = "×"; closeHub.BackgroundColor3 = Color3.fromRGB(40,10,15); closeHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", closeHub).CornerRadius = UDim.new(1,0)
+
+local scroll = Instance.new("ScrollingFrame", hubFrame)
+scroll.Size = UDim2.new(1, -20, 1, -70); scroll.Position = UDim2.new(0, 10, 0, 60); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
+local grid = Instance.new("UIGridLayout", scroll)
+grid.CellSize = UDim2.new(0.48, 0, 0, 40); grid.CellPadding = UDim2.new(0.03, 0, 0, 8)
+
+-- 4. BOOSTER BUTTON (IN HUB)
+local boosterBtn = Instance.new("TextButton", scroll)
+boosterBtn.Text = "S4booster"; boosterBtn.BackgroundColor3 = Color3.fromRGB(25, 20, 35); boosterBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", boosterBtn)
+local bStroke = Instance.new("UIStroke", boosterBtn); bStroke.Color = Color3.fromRGB(60, 60, 70)
+
+local gear = Instance.new("TextButton", boosterBtn)
+gear.Size = UDim2.new(0, 20, 0, 20); gear.Position = UDim2.new(1, -25, 0.5, -10); gear.Text = "⚙"; gear.TextColor3 = NEON_BLUE; gear.BackgroundTransparency = 1
+
+-- 5. SUB-SETTINGS (BOOSTER CUSTOMIZATION)
+local subSet = createFrame("BoosterSettings", UDim2.new(0, 200, 0, 150), UDim2.new(0.5, 210, 0.5, -75))
+subSet.Visible = false
+
+local function addInp(t, v, y)
+    local l = Instance.new("TextLabel", subSet); l.Text = t; l.Position = UDim2.new(0, 10, 0, y); l.Size = UDim2.new(0, 80, 0, 20); l.TextColor3 = Color3.new(0.7,0.7,0.7); l.BackgroundTransparency = 1
+    local i = Instance.new("TextBox", subSet); i.Text = tostring(v); i.Position = UDim2.new(0, 100, 0, y); i.Size = UDim2.new(0, 80, 0, 20); i.BackgroundColor3 = Color3.fromRGB(20,20,25); i.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", i)
+    return i
+end
+local ni = addInp("Normal:", normalSpeed, 20); local ci = addInp("Carry:", carrySpeed, 60)
+local save = Instance.new("TextButton", subSet); save.Size = UDim2.new(0.8, 0, 0, 25); save.Position = UDim2.new(0.1, 0, 1, -35); save.Text = "SAVE"; save.BackgroundColor3 = Color3.fromRGB(30,40,30); save.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", save)
+
+-- Placeholder Buttons
+for i = 1, 5 do
+    local btn = Instance.new("TextButton", scroll); btn.Text = "s4loading"; btn.BackgroundColor3 = Color3.fromRGB(20, 15, 25); btn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", btn)
+end
+
+-- === INTERACTIONS ===
+boosterBtn.MouseButton1Click:Connect(function()
+    boosterEnabled = not boosterEnabled
+    bStroke.Color = boosterEnabled and NEON_PURPLE or Color3.fromRGB(60, 60, 70)
+end)
+gear.MouseButton1Click:Connect(function() subSet.Visible = not subSet.Visible end)
+toggleHub.MouseButton1Click:Connect(function() hubFrame.Visible = not hubFrame.Visible end)
+closeHub.MouseButton1Click:Connect(function() hubFrame.Visible = false; subSet.Visible = false end)
+save.MouseButton1Click:Connect(function()
+    normalSpeed = tonumber(ni.Text) or 60; carrySpeed = tonumber(ci.Text) or 29
+    save.Text = "SAVED"; task.wait(0.5); save.Text = "SAVE"
+end)
+
+-- Draggable Logic
+local function drag(f)
+    local d, st, sp
+    f.InputBegan:Connect(function(i) if not guiLocked and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then d = true; st = i.Position; sp = f.Position end end)
+    UserInputService.InputChanged:Connect(function(i) if d then local del = i.Position - st; f.Position = UDim2.new(sp.X.Scale, sp.X.Offset + del.X, sp.Y.Scale, sp.Y.Offset + del.Y) end end)
+    UserInputService.InputEnded:Connect(function() d = false end)
+end
+drag(mainFrame); drag(hubFrame); drag(lockFrame); drag(subSet)
+
+task.spawn(function()
+    while true do
+        stats.Text = string.format("FPS: %d | PING: %dms", math.floor(1/RunService.RenderStepped:Wait()), math.floor(Player:GetNetworkPing()*1000))
         task.wait(0.5)
-        enableSpeedBypass()
-    end
-end)
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == Enum.KeyCode.LeftShift then
-        if not enabled then
-            enabled = true
-            toggleButton.Text = "ON"
-            toggleButton.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
-            enableSpeedBypass()
-        end
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == Enum.KeyCode.LeftShift then
-        if enabled then
-            enabled = false
-            toggleButton.Text = "OFF"
-            toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-            disableSpeedBypass()
-        end
-    end
-end)
-
-local dragging = false
-local dragInput, dragStart, startPos
-
-mainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = mainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-mainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input == dragInput then
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
