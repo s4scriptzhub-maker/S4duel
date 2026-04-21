@@ -5,144 +5,121 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local playerGui = Player:WaitForChild("PlayerGui")
 
--- === PREMIUM THEME ===
+-- === UI THEME ===
 local NEON_PURPLE = Color3.fromRGB(180, 0, 255)
 local NEON_BLUE = Color3.fromRGB(0, 180, 255)
-local BG_COLOR = Color3.fromRGB(8, 8, 12)
-local BORDER_WIDTH = 1.2
+local BG_COLOR = Color3.fromRGB(5, 5, 10)
+local BORDER_THIN = 1.2
 
 local guiLocked = false
 local Features = {
     ["Speed Boost"] = false,
     ["Anti-Ragdoll"] = false,
     ["SpinBot"] = false,
-    ["Bat Aimbot"] = false,
     ["Galaxy Mode"] = false,
-    ["Optimizer"] = false
 }
 
--- === LOGISTICS LOOPS ===
+-- === LOGISTICS LOOP (Runs the actual cheats) ===
 RunService.Heartbeat:Connect(function()
     local char = Player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
     if not hrp or not hum then return end
 
-    -- 1. Speed Boost Logic
     if Features["Speed Boost"] and hum.MoveDirection.Magnitude > 0 then
-        hrp.AssemblyLinearVelocity = Vector3.new(
-            hum.MoveDirection.X * 32, 
-            hrp.AssemblyLinearVelocity.Y, 
-            hum.MoveDirection.Z * 32
-        )
+        hrp.AssemblyLinearVelocity = Vector3.new(hum.MoveDirection.X * 35, hrp.AssemblyLinearVelocity.Y, hum.MoveDirection.Z * 35)
     end
 
-    -- 2. Anti-Ragdoll Logic
     if Features["Anti-Ragdoll"] then
-        local state = hum:GetState()
-        if state == Enum.HumanoidStateType.Ragdoll or state == Enum.HumanoidStateType.FallingDown then
+        if hum:GetState() == Enum.HumanoidStateType.Ragdoll or hum:GetState() == Enum.HumanoidStateType.FallingDown then
             hum:ChangeState(Enum.HumanoidStateType.Running)
         end
     end
 
-    -- 3. SpinBot Logic
     if Features["SpinBot"] then
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(35), 0)
-    end
-
-    -- 4. Bat Aimbot (Aggressive Movement toward Nearest)
-    if Features["Bat Aimbot"] then
-        local target, dist = nil, 50
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local d = (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
-                if d < dist then dist = d target = p.Character.HumanoidRootPart end
-            end
-        end
-        if target then
-            local dir = (target.Position - hrp.Position).Unit
-            hrp.AssemblyLinearVelocity = Vector3.new(dir.X * 50, hrp.AssemblyLinearVelocity.Y, dir.Z * 50)
-        end
+        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(40), 0)
     end
 end)
 
--- === UI BUILDER ===
+-- === UI CREATION ===
 local screenGui = Instance.new("ScreenGui", playerGui)
-screenGui.Name = "S4_Elite_Premium"
+screenGui.Name = "S4_Elite_Fixed"
 screenGui.ResetOnSpawn = false
 
-local function createFrame(name, size, pos, color)
+local function createBaseFrame(name, size, pos, color)
     local f = Instance.new("Frame", screenGui)
     f.Name = name; f.Size = size; f.Position = pos
-    f.BackgroundColor3 = BG_COLOR; f.BackgroundTransparency = 0.25
-    f.BorderSizePixel = 0; Instance.new("UICorner", f).CornerRadius = UDim.new(0, 3)
+    f.BackgroundColor3 = BG_COLOR; f.BackgroundTransparency = 0.2
+    f.BorderSizePixel = 0; f.Active = true -- Prevents clicking through to game
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 4)
     local s = Instance.new("UIStroke", f)
-    s.Thickness = BORDER_WIDTH; s.Color = color or NEON_PURPLE
+    s.Thickness = BORDER_THIN; s.Color = color or NEON_PURPLE
     return f, s
 end
 
--- 1. LOCK SYSTEM
-local lockFrame, lockStroke = createFrame("Lock", UDim2.new(0, 90, 0, 32), UDim2.new(0.5, -240, 0, 50), NEON_BLUE)
+-- 1. LOCK GUI
+local lockFrame, lockStroke = createBaseFrame("LockFrame", UDim2.new(0, 100, 0, 35), UDim2.new(0.5, -260, 0, 50), NEON_BLUE)
 local lockBtn = Instance.new("TextButton", lockFrame)
-lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1; lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1, 1, 1); lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 10
+lockBtn.Size = UDim2.new(1,0,1,0); lockBtn.BackgroundTransparency = 1; lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1,1,1); lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 11
 
--- 2. MAIN HEADER
-local mainFrame = createFrame("Main", UDim2.new(0, 180, 0, 85), UDim2.new(0.5, -90, 0, 50))
-local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 35); title.Text = "S4duels"; title.TextColor3 = Color3.new(1,1,1); title.Font = Enum.Font.GothamBold; title.TextSize = 20; title.BackgroundTransparency = 1
+-- 2. MAIN HEADER (S4duels)
+local mainFrame = createBaseFrame("MainHeader", UDim2.new(0, 200, 0, 90), UDim2.new(0.5, -100, 0, 50))
+local mainTitle = Instance.new("TextLabel", mainFrame)
+mainTitle.Size = UDim2.new(1,0,0,40); mainTitle.Text = "S4duels"; mainTitle.TextColor3 = Color3.new(1,1,1); mainTitle.Font = Enum.Font.GothamBold; mainTitle.TextSize = 22; mainTitle.BackgroundTransparency = 1
 local stats = Instance.new("TextLabel", mainFrame)
-stats.Size = UDim2.new(1, 0, 0, 20); stats.Position = UDim2.new(0,0,0,38); stats.TextColor3 = Color3.fromRGB(150,150,150); stats.Font = Enum.Font.Code; stats.TextSize = 11; stats.BackgroundTransparency = 1
-local toggleHub = Instance.new("TextButton", mainFrame)
-toggleHub.Size = UDim2.new(0, 75, 0, 25); toggleHub.Position = UDim2.new(0.5, -37, 1, 10); toggleHub.BackgroundColor3 = Color3.fromRGB(15,15,20); toggleHub.Text = "S4HUB"; toggleHub.TextColor3 = Color3.new(1,1,1); toggleHub.Font = Enum.Font.GothamBold; toggleHub.TextSize = 11; Instance.new("UICorner", toggleHub)
+stats.Size = UDim2.new(1,0,0,20); stats.Position = UDim2.new(0,0,0,40); stats.TextColor3 = Color3.fromRGB(160,160,160); stats.Font = Enum.Font.Code; stats.TextSize = 11; stats.BackgroundTransparency = 1
+local openHub = Instance.new("TextButton", mainFrame)
+openHub.Size = UDim2.new(0, 80, 0, 25); openHub.Position = UDim2.new(0.5, -40, 1, 10); openHub.BackgroundColor3 = Color3.fromRGB(20,20,30); openHub.Text = "S4HUB"; openHub.TextColor3 = Color3.new(1,1,1); openHub.Font = Enum.Font.GothamBold; Instance.new("UICorner", openHub)
 
--- 3. SETTINGS MENU
-local hubFrame = createFrame("Hub", UDim2.new(0, 420, 0, 320), UDim2.new(0.5, -210, 0.5, -160))
+-- 3. HUB MENU (S4HUB)
+local hubFrame = createBaseFrame("S4HUB_Menu", UDim2.new(0, 420, 0, 300), UDim2.new(0.5, -210, 0.5, -150))
 hubFrame.Visible = false
+local hubTitle = Instance.new("TextLabel", hubFrame)
+hubTitle.Size = UDim2.new(1, 0, 0, 50); hubTitle.Text = "S4HUB SETTINGS"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = Enum.Font.GothamBold; hubTitle.TextSize = 18; hubTitle.BackgroundTransparency = 1
+
 local closeHub = Instance.new("TextButton", hubFrame)
-closeHub.Size = UDim2.new(0, 26, 0, 26); closeHub.Position = UDim2.new(1, -34, 0, 8); closeHub.BackgroundColor3 = Color3.fromRGB(45, 15, 20); closeHub.Text = "×"; closeHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", closeHub).CornerRadius = UDim.new(1,0)
+closeHub.Size = UDim2.new(0, 24, 0, 24); closeHub.Position = UDim2.new(1, -30, 0, 10); closeHub.BackgroundColor3 = Color3.fromRGB(60, 20, 25); closeHub.Text = "×"; closeHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", closeHub).CornerRadius = UDim.new(1,0)
 
 local scroll = Instance.new("ScrollingFrame", hubFrame)
-scroll.Size = UDim2.new(1, -20, 1, -70); scroll.Position = UDim2.new(0, 10, 0, 60); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0; scroll.ScrollBarThickness = 1
+scroll.Size = UDim2.new(1, -20, 1, -70); scroll.Position = UDim2.new(0, 10, 0, 60); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
 local grid = Instance.new("UIGridLayout", scroll)
-grid.CellSize = UDim2.new(0.48, 0, 0, 42); grid.CellPadding = UDim2.new(0.03, 0, 0, 10)
+grid.CellSize = UDim2.new(0.48, 0, 0, 45); grid.CellPadding = UDim2.new(0.03, 0, 0, 10)
 
--- Populate Buttons
+-- Populate Settings
 for name, _ in pairs(Features) do
     local b = Instance.new("TextButton", scroll)
-    b.Text = name; b.BackgroundColor3 = Color3.fromRGB(20, 18, 25); b.TextColor3 = Color3.new(1, 1, 1); b.Font = Enum.Font.GothamSemibold; b.TextSize = 12; Instance.new("UICorner", b)
-    local s = Instance.new("UIStroke", b); s.Color = Color3.fromRGB(50,50,60); s.Thickness = 0.8
+    b.Text = name; b.BackgroundColor3 = Color3.fromRGB(25, 22, 30); b.TextColor3 = Color3.new(1, 1, 1); b.Font = Enum.Font.GothamSemibold; b.TextSize = 12; Instance.new("UICorner", b)
+    local s = Instance.new("UIStroke", b); s.Color = Color3.fromRGB(60,60,70); s.Thickness = 1
     
     b.MouseButton1Click:Connect(function()
         Features[name] = not Features[name]
-        s.Color = Features[name] and NEON_PURPLE or Color3.fromRGB(50,50,60)
-        b.BackgroundColor3 = Features[name] and Color3.fromRGB(30, 20, 45) or Color3.fromRGB(20, 18, 25)
-        
-        -- Special trigger for Galaxy/Optimizer
-        if name == "Galaxy Mode" then game.Lighting.Gravity = Features[name] and 100 or 196.2 end
+        s.Color = Features[name] and NEON_PURPLE or Color3.fromRGB(60,60,70)
+        b.BackgroundColor3 = Features[name] and Color3.fromRGB(40, 30, 60) or Color3.fromRGB(25, 22, 30)
+        if name == "Galaxy Mode" then game.Lighting.Gravity = Features[name] and 80 or 196.2 end
     end)
 end
 
--- === DRAGGING & LOGIC ===
-local function drag(f)
-    local d, i, st, sp
-    f.InputBegan:Connect(function(inp)
-        if not guiLocked and (inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch) then
-            d = true; st = inp.Position; sp = f.Position
+-- === FIXED DRAG SYSTEM (Prevents UI disappearing) ===
+local function applyDrag(f)
+    local dragging, dragStart, startPos
+    f.InputBegan:Connect(function(input)
+        if not guiLocked and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            dragging = true; dragStart = input.Position; startPos = f.Position
         end
     end)
-    UserInputService.InputChanged:Connect(function(inp)
-        if d then
-            local delta = inp.Position - st
-            f.Position = UDim2.new(sp.X.Scale, sp.X.Offset + delta.X, sp.Y.Offset + delta.Y)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            f.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
-    UserInputService.InputEnded:Connect(function() d = false end)
+    UserInputService.InputEnded:Connect(function() dragging = false end)
 end
 
-drag(mainFrame); drag(hubFrame); drag(lockFrame)
+applyDrag(mainFrame); applyDrag(hubFrame); applyDrag(lockFrame)
 
-toggleHub.MouseButton1Click:Connect(function() hubFrame.Visible = not hubFrame.Visible end)
+-- Button Connects
+openHub.MouseButton1Click:Connect(function() hubFrame.Visible = not hubFrame.Visible end)
 closeHub.MouseButton1Click:Connect(function() hubFrame.Visible = false end)
 lockBtn.MouseButton1Click:Connect(function()
     guiLocked = not guiLocked
@@ -150,6 +127,7 @@ lockBtn.MouseButton1Click:Connect(function()
     lockStroke.Color = guiLocked and Color3.fromRGB(255, 50, 50) or NEON_BLUE
 end)
 
+-- Performance Update
 task.spawn(function()
     while true do
         local fps = math.floor(1 / RunService.RenderStepped:Wait())
