@@ -5,13 +5,24 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- === CONFIGURATION ===
+-- === CONFIGURATION & AUTOPLAY DATA ===
 local NEON_PURPLE = Color3.fromRGB(180, 0, 255)
 local NEON_BLUE = Color3.fromRGB(0, 180, 255)
 local BG_COLOR = Color3.fromRGB(25, 20, 35)
 local BG_TRANSPARENCY = 0.4
 
 local guiLocked = false
+local autoPlayActive = false
+local instaGrab = false
+
+-- Coordinates and Speeds from AntiLoser script 
+local A1_P1 = Vector3.new(-472.59,-7.30,94.43)
+local A1_P2 = Vector3.new(-484.55,-5.33,95.05)
+local A1_P3 = Vector3.new(-472.59,-7.30,94.43)
+local A1_P4 = Vector3.new(-471.25,-6.83,7.08)
+
+local SPEED_IDA = 56
+local SPEED_VOLTA = 29
 
 -- === CORE SCREEN GUI ===
 local screenGui = Instance.new("ScreenGui")
@@ -19,61 +30,76 @@ screenGui.Name = "S4duels_FinalLayout"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- === UNIVERSAL DRAGGING FUNCTION ===
-local function makeDraggable(frame)
-	local dragging = false
-	local dragInput, dragStart, startPos
-
-	frame.InputBegan:Connect(function(input)
-		if guiLocked then return end
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			dragStart = input.Position
-			startPos = frame.Position
-
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-			end)
-		end
-	end)
-
-	frame.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-			dragInput = input
-		end
-	end)
-
-	UserInputService.InputChanged:Connect(function(input)
-		if dragging and input == dragInput then
-			if guiLocked then dragging = false return end
-			local delta = input.Position - dragStart
-			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-		end
-	end)
+-- === UTILITY FUNCTIONS ===
+local function hrp()
+    local c = player.Character
+    return c and c:FindFirstChild("HumanoidRootPart")
 end
 
--- === STYLED FRAME CREATOR ===
+-- Movement logic from source 
+local function go(pos, speed, cond)
+    local r = hrp()
+    if not r then return end
+
+    while cond() and (r.Position - pos).Magnitude > 1 do
+        local dir = (pos - r.Position).Unit
+        r.AssemblyLinearVelocity = Vector3.new(
+            dir.X * speed,
+            r.AssemblyLinearVelocity.Y,
+            dir.Z * speed
+        )
+        task.wait()
+    end
+end
+
+-- Universal Dragging (Mobile & PC compatible)
+local function makeDraggable(frame)
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if guiLocked then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then
+            if guiLocked then dragging = false return end
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
 local function createStyledFrame(name, size, pos, strokeColor)
-	local frame = Instance.new("Frame")
-	frame.Name = name
-	frame.Size = size
-	frame.Position = pos
-	frame.BackgroundColor3 = BG_COLOR
-	frame.BackgroundTransparency = BG_TRANSPARENCY
-	frame.BorderSizePixel = 0
-	frame.Active = true 
-	frame.Parent = screenGui
-
-	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 2
-	stroke.Color = strokeColor or NEON_PURPLE
-	stroke.Parent = frame
-
-	return frame, stroke
+    local frame = Instance.new("Frame")
+    frame.Name = name
+    frame.Size = size
+    frame.Position = pos
+    frame.BackgroundColor3 = BG_COLOR
+    frame.BackgroundTransparency = BG_TRANSPARENCY
+    frame.BorderSizePixel = 0
+    frame.Active = true 
+    frame.Parent = screenGui
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 2
+    stroke.Color = strokeColor or NEON_PURPLE
+    stroke.Parent = frame
+    return frame, stroke
 end
 
 -- === 1. INDEPENDENT LOCK BUTTON ===
@@ -112,23 +138,19 @@ statsLabel.Font = Enum.Font.Code
 statsLabel.BackgroundTransparency = 1
 statsLabel.Parent = mainFrame
 
--- Toggle Button (Re-attached to move with Main Frame)
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0, 80, 0, 30)
 toggleBtn.Position = UDim2.new(0.5, -40, 1, 10)
 toggleBtn.BackgroundColor3 = BG_COLOR
-toggleBtn.BackgroundTransparency = BG_TRANSPARENCY
 toggleBtn.Text = "Toggle"
 toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.TextSize = 13
 toggleBtn.Parent = mainFrame
-
-local toggleStroke = Instance.new("UIStroke")
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
+local toggleStroke = Instance.new("UIStroke", toggleBtn)
 toggleStroke.Color = NEON_PURPLE
 toggleStroke.Thickness = 2
-toggleStroke.Parent = toggleBtn
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
 -- === 3. S4HUB GRID MENU ===
 local settingsFrame = createStyledFrame("S4HUB", UDim2.new(0, 420, 0, 300), UDim2.new(0.5, -210, 0.5, -150))
@@ -156,7 +178,6 @@ closeBtn.Parent = settingsFrame
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
 Instance.new("UIStroke", closeBtn).Color = NEON_PURPLE
 
--- GRID LAYOUT
 local scroll = Instance.new("ScrollingFrame")
 scroll.Size = UDim2.new(1, -30, 1, -70)
 scroll.Position = UDim2.new(0, 15, 0, 60)
@@ -170,43 +191,55 @@ grid.CellSize = UDim2.new(0.48, 0, 0, 45)
 grid.CellPadding = UDim2.new(0.04, 0, 0, 10)
 grid.Parent = scroll
 
+-- === 4. CREATE BUTTONS & ADD AUTOPLAY ===
 for i = 1, 8 do
-	local btn = Instance.new("TextButton")
-	btn.BackgroundColor3 = Color3.fromRGB(50, 45, 65)
-	btn.Text = "s4loading"
-	btn.TextColor3 = Color3.new(1, 1, 1)
-	btn.Font = Enum.Font.GothamSemibold
-	btn.TextSize = 16
-	btn.Parent = scroll
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    local btn = Instance.new("TextButton")
+    btn.BackgroundColor3 = Color3.fromRGB(50, 45, 65)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 16
+    btn.Parent = scroll
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+    if i == 1 then
+        btn.Text = "Autoplay"
+        btn.MouseButton1Click:Connect(function()
+            autoPlayActive = not autoPlayActive
+            btn.BackgroundColor3 = autoPlayActive and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(50, 45, 65)
+            
+            if autoPlayActive then
+                task.spawn(function()
+                    go(A1_P1, SPEED_IDA, function() return autoPlayActive end)
+                    go(A1_P2, SPEED_IDA, function() return autoPlayActive end)
+                    instaGrab = true
+                    go(A1_P3, SPEED_VOLTA, function() return autoPlayActive end)
+                    instaGrab = false
+                    go(A1_P4, SPEED_VOLTA, function() return autoPlayActive end)
+                    
+                    autoPlayActive = false
+                    btn.BackgroundColor3 = Color3.fromRGB(50, 45, 65)
+                end)
+            end
+        end)
+    else
+        btn.Text = "s4loading"
+    end
 end
 
--- === BUTTON LOGIC ===
-toggleBtn.MouseButton1Click:Connect(function()
-	settingsFrame.Visible = not settingsFrame.Visible
-end)
-
-closeBtn.MouseButton1Click:Connect(function()
-	settingsFrame.Visible = false
-end)
-
+-- === 5. LOGIC & PERFORMANCE ===
+toggleBtn.MouseButton1Click:Connect(function() settingsFrame.Visible = not settingsFrame.Visible end)
+closeBtn.MouseButton1Click:Connect(function() settingsFrame.Visible = false end)
 lockBtn.MouseButton1Click:Connect(function()
-	guiLocked = not guiLocked
-	if guiLocked then
-		lockBtn.Text = "Locked"
-		lockStroke.Color = Color3.fromRGB(255, 80, 80)
-	else
-		lockBtn.Text = "Lock GUI"
-		lockStroke.Color = NEON_BLUE
-	end
+    guiLocked = not guiLocked
+    lockBtn.Text = guiLocked and "Locked" or "Lock GUI"
+    lockStroke.Color = guiLocked and Color3.fromRGB(255, 80, 80) or NEON_BLUE
 end)
 
--- Performance update logic
 task.spawn(function()
-	while true do
-		local fps = math.floor(1 / RunService.RenderStepped:Wait())
-		local ping = math.floor(player:GetNetworkPing() * 2000)
-		statsLabel.Text = string.format("FPS: %d  |  PING: %dms", fps, ping)
-		task.wait(0.5)
-	end
+    while true do
+        local fps = math.floor(1 / RunService.RenderStepped:Wait())
+        local ping = math.floor(player:GetNetworkPing() * 2000)
+        statsLabel.Text = string.format("FPS: %d  |  PING: %dms", fps, ping)
+        task.wait(0.5)
+    end
 end)
