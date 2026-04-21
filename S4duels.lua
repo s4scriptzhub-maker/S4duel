@@ -15,11 +15,11 @@ local guiLocked = false
 
 -- === CORE SCREEN GUI ===
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "S4duels_Final"
+screenGui.Name = "S4duels_Independent"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- === UNIVERSAL DRAGGING FUNCTION (MOBILE & PC) ===
+-- === MOBILE & PC DRAGGING FUNCTION ===
 local function makeDraggable(frame)
 	local dragging = false
 	local dragInput, dragStart, startPos
@@ -77,7 +77,7 @@ local function createStyledFrame(name, size, pos, strokeColor)
 end
 
 -- === 1. INDEPENDENT LOCK BUTTON ===
-local lockFrame, lockStroke = createStyledFrame("LockContainer", UDim2.new(0, 100, 0, 35), UDim2.new(0.5, -210, 0, 50), NEON_BLUE)
+local lockFrame, lockStroke = createStyledFrame("LockContainer", UDim2.new(0, 110, 0, 40), UDim2.new(0.5, -230, 0, 50), NEON_BLUE)
 makeDraggable(lockFrame)
 
 local lockBtn = Instance.new("TextButton")
@@ -89,8 +89,21 @@ lockBtn.Font = Enum.Font.GothamBold
 lockBtn.TextSize = 14
 lockBtn.Parent = lockFrame
 
--- === 2. MAIN HEADER (FPS/PING) ===
-local mainFrame = createStyledFrame("MainHeader", UDim2.new(0, 280, 0, 80), UDim2.new(0.5, -140, 0, 50))
+-- === 2. INDEPENDENT TOGGLE BUTTON ===
+local toggleFrame, toggleStroke = createStyledFrame("ToggleContainer", UDim2.new(0, 110, 0, 40), UDim2.new(0.5, 120, 0, 50), NEON_PURPLE)
+makeDraggable(toggleFrame)
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(1, 0, 1, 0)
+toggleBtn.BackgroundTransparency = 1
+toggleBtn.Text = "Toggle"
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 14
+toggleBtn.Parent = toggleFrame
+
+-- === 3. MAIN HEADER (FPS/PING) ===
+local mainFrame = createStyledFrame("MainHeader", UDim2.new(0, 220, 0, 80), UDim2.new(0.5, -110, 0, 50))
 makeDraggable(mainFrame)
 
 local title = Instance.new("TextLabel")
@@ -112,56 +125,44 @@ statsLabel.Font = Enum.Font.Code
 statsLabel.BackgroundTransparency = 1
 statsLabel.Parent = mainFrame
 
--- Toggle Button (attached to Main Frame)
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0, 80, 0, 25)
-toggleBtn.Position = UDim2.new(0.5, -40, 1, 5)
-toggleBtn.BackgroundColor3 = BG_COLOR
-toggleBtn.Text = "Toggle"
-toggleBtn.TextColor3 = Color3.new(1, 1, 1)
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.Parent = mainFrame
-Instance.new("UICorner", toggleBtn)
-local tStroke = Instance.new("UIStroke", toggleBtn)
-tStroke.Color = NEON_PURPLE
-tStroke.Thickness = 2
-
--- === 3. S4HUB GRID MENU ===
-local settingsFrame = createStyledFrame("S4HUB", UDim2.new(0, 350, 0, 240), UDim2.new(0.5, -175, 0.5, -120))
+-- === 4. S4HUB BIGGER GRID MENU ===
+local settingsFrame = createStyledFrame("S4HUB", UDim2.new(0, 420, 0, 300), UDim2.new(0.5, -210, 0.5, -150))
 settingsFrame.Visible = false
 makeDraggable(settingsFrame)
 
 local settingsTitle = Instance.new("TextLabel")
-settingsTitle.Size = UDim2.new(1, 0, 0, 40)
+settingsTitle.Size = UDim2.new(1, 0, 0, 50)
 settingsTitle.Text = "S4HUB"
 settingsTitle.Font = Enum.Font.GothamBold
 settingsTitle.TextColor3 = Color3.new(1, 1, 1)
+settingsTitle.TextSize = 22
 settingsTitle.BackgroundTransparency = 1
 settingsTitle.Parent = settingsFrame
 
 local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 24, 0, 24)
-closeBtn.Position = UDim2.new(1, -30, 0, 8)
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -40, 0, 10)
 closeBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
 closeBtn.Text = "×"
 closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.TextSize = 22
 closeBtn.Font = Enum.Font.GothamBold
 closeBtn.Parent = settingsFrame
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
 Instance.new("UIStroke", closeBtn).Color = NEON_PURPLE
 
--- GRID LAYOUT FOR MOBILE FRIENDLINESS
+-- GRID LAYOUT
 local scroll = Instance.new("ScrollingFrame")
-scroll.Size = UDim2.new(1, -20, 1, -50)
-scroll.Position = UDim2.new(0, 10, 0, 45)
+scroll.Size = UDim2.new(1, -30, 1, -70)
+scroll.Position = UDim2.new(0, 15, 0, 60)
 scroll.BackgroundTransparency = 1
 scroll.BorderSizePixel = 0
-scroll.ScrollBarThickness = 3
+scroll.ScrollBarThickness = 4
 scroll.Parent = settingsFrame
 
 local grid = Instance.new("UIGridLayout")
-grid.CellSize = UDim2.new(0.48, 0, 0, 35) -- Two columns
-grid.CellPadding = UDim2.new(0.04, 0, 0, 8)
+grid.CellSize = UDim2.new(0.48, 0, 0, 45) -- Slightly taller buttons
+grid.CellPadding = UDim2.new(0.04, 0, 0, 10)
 grid.Parent = scroll
 
 for i = 1, 8 do
@@ -169,9 +170,10 @@ for i = 1, 8 do
 	btn.BackgroundColor3 = Color3.fromRGB(50, 45, 65)
 	btn.Text = "s4loading"
 	btn.TextColor3 = Color3.new(1, 1, 1)
-	btn.Font = Enum.Font.Gotham
+	btn.Font = Enum.Font.GothamSemibold
+	btn.TextSize = 16
 	btn.Parent = scroll
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 end
 
 -- === LOGIC ===
@@ -194,6 +196,7 @@ lockBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
+-- Performance update logic
 task.spawn(function()
 	while true do
 		local fps = math.floor(1 / RunService.RenderStepped:Wait())
