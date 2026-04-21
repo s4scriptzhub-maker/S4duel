@@ -1,111 +1,384 @@
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+AntiLoserAutoPlay.txt
+7 kB
+Evil Hub Owner [OR'S],  — 28.03.2026 15:12
+Instant Reset Source
+-- ============================================================
+-- INSTANT RESET  —  Standalone Button + Keybind
+-- Left-click / keybind  →  reset
+-- Right-click           →  rebind key
+-- ============================================================
+
+Instant reset.txt
+9 kB
+Cxyro Speed Source
+ 
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
 
-local Player = Players.LocalPlayer
-local playerGui = Player:WaitForChild("PlayerGui")
+local player = Players.LocalPlayer
 
--- === CONFIGURATION ===
-local normalSpeed = 60
-local carrySpeed = 29
-local boosterEnabled = false
+local targetSpeed = 29
+local enabled = false
+local connection
 
--- === LOGISTICS: ATTACHMENT DETECTION ===
-local function isHoldingBrainrot()
-    local char = Player.Character
-    if not char then return false end
-
-    -- 1. Check for any Model/Part attached to your upper body (where visual objects go)
-    local checkAreas = {char:FindFirstChild("Head"), char:FindFirstChild("UpperTorso"), char:FindFirstChild("LowerTorso")}
+local function enableSpeedBypass()
+    if connection then connection:Disconnect() end
     
-    for _, area in pairs(checkAreas) do
-        if area then
-            for _, child in pairs(area:GetChildren()) do
-                -- If there's a Model or Part welded there that isn't a standard accessory/hat
-                if (child:IsA("Model") or child:IsA("BasePart")) and not child:IsA("Accessory") then
-                    return true
+    connection = RunService.Stepped:Connect(function()
+        if not enabled then return end
+        
+        local character = player.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+        
+        if humanoid:GetState() == Enum.HumanoidStateType.Running then
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                local moveDirection = humanoid.MoveDirection
+                if moveDirection.Magnitude > 0 then
+                    rootPart.Velocity = Vector3.new(
+                        moveDirection.X * targetSpeed,
+                        rootPart.Velocity.Y,
+                        moveDirection.Z * targetSpeed
+                    )
                 end
             end
         end
-    end
+    end)
+end
 
-    -- 2. Fallback: Check character for the "Stolen" marker or Brainrot UI
-    for _, v in pairs(char:GetDescendants()) do
-        if v.Name == "Stolen" or v:IsA("BillboardGui") or v.Name:find("%$") then
-            return true
+local function disableSpeedBypass()
+    if connection then
+        connection:Disconnect()
+        connection = nil
+    end
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SpeedBypassGUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 200, 0, 120)
+mainFrame.Position = UDim2.new(0, 10, 0, 10)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Text = "SPEED BYPASS"
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.Arcade
+title.TextSize = 16
+title.Parent = mainFrame
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Text = "OFF"
+toggleButton.Size = UDim2.new(0.8, 0, 0, 35)
+toggleButton.Position = UDim2.new(0.1, 0, 0.3, 0)
+toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Font = Enum.Font.Arcade
+toggleButton.TextSize = 14
+toggleButton.Parent = mainFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 6)
+toggleCorner.Parent = toggleButton
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Text = "Speed: " .. targetSpeed
+speedLabel.Size = UDim2.new(1, 0, 0, 20)
+speedLabel.Position = UDim2.new(0, 0, 0.7, 0)
+speedLabel.BackgroundTransparency = 1
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.Font = Enum.Font.Arcade
+speedLabel.TextSize = 12
+speedLabel.Parent = mainFrame
+
+local speedSlider = Instance.new("TextBox")
+speedSlider.Text = tostring(targetSpeed)
+speedSlider.Size = UDim2.new(0.8, 0, 0, 25)
+speedSlider.Position = UDim2.new(0.1, 0, 0.8, 0)
+speedSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+... (96 Zeilen verbleibend)
+
+Cxyro Speed.txt
+7 kB
+Evil Hub Owner [OR'S],  — 06.04.2026 21:23
+22s duels free
+repeat task.wait() until game:IsLoaded()
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")... (20 kB verbleibend)
+
+22s hub duels.txt
+70 kB
+Josh — 16.04.2026 20:52
+Weitergeleitet
+New k7 srcs
+Bild
+repeat task.wait() until game:IsLoaded()
+pcall(function() setfpscap(999) end)
+local Players        = game:GetService("Players")
+local RunService     = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService   = game:GetService("TweenService")... (118 kB verbleibend)
+
+message - 2026-04-02T102130.220.txt
+168 kB
+repeat task.wait() until game:IsLoaded()
+local Players      = game:GetService("Players")
+local RunService   = game:GetService("RunService")
+local UIS          = game:GetService("UserInputService")
+local TS           = game:GetService("TweenService")
+local Lighting     = game:GetService("Lighting")... (98 kB verbleibend)
+
+message - 2026-04-02T102126.766.txt
+148 kB
+Weitergeleitet
+Bild
+repeat task.wait() until game:IsLoaded()
+
+local Players           = game:GetService("Players")
+local RunService        = game:GetService("RunService")
+local UserInputService  = game:GetService("UserInputService")
+local TweenService      = game:GetService("TweenService")... (36 kB verbleibend)
+
+ragerkurd source.txt
+86 kB
+Weitergeleitet
+Bild
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local TextChatService = game:GetService("TextChatService")... (86 kB verbleibend)
+
+Drak duel arc.txt
+136 kB
+!lock
+Arcane-chan ✨
+APP
+ — 16.04.2026 20:52
+Locked ⁠🆓┃𝐅𝐑𝐄𝐄-𝐋𝐄𝐀𝐊𝐒.
+Carl-bot
+APP
+ — 16.04.2026 20:52
+✅ Locked down 🆓┃𝐅𝐑𝐄𝐄-𝐋𝐄𝐀𝐊𝐒
+﻿
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+local targetSpeed = 29
+local enabled = false
+local connection
+
+local function enableSpeedBypass()
+    if connection then connection:Disconnect() end
+    
+    connection = RunService.Stepped:Connect(function()
+        if not enabled then return end
+        
+        local character = player.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+        
+        if humanoid:GetState() == Enum.HumanoidStateType.Running then
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                local moveDirection = humanoid.MoveDirection
+                if moveDirection.Magnitude > 0 then
+                    rootPart.Velocity = Vector3.new(
+                        moveDirection.X * targetSpeed,
+                        rootPart.Velocity.Y,
+                        moveDirection.Z * targetSpeed
+                    )
+                end
+            end
+        end
+    end)
+end
+
+local function disableSpeedBypass()
+    if connection then
+        connection:Disconnect()
+        connection = nil
+    end
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SpeedBypassGUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 200, 0, 120)
+mainFrame.Position = UDim2.new(0, 10, 0, 10)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Text = "SPEED BYPASS"
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.Arcade
+title.TextSize = 16
+title.Parent = mainFrame
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Text = "OFF"
+toggleButton.Size = UDim2.new(0.8, 0, 0, 35)
+toggleButton.Position = UDim2.new(0.1, 0, 0.3, 0)
+toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Font = Enum.Font.Arcade
+toggleButton.TextSize = 14
+toggleButton.Parent = mainFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 6)
+toggleCorner.Parent = toggleButton
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Text = "Speed: " .. targetSpeed
+speedLabel.Size = UDim2.new(1, 0, 0, 20)
+speedLabel.Position = UDim2.new(0, 0, 0.7, 0)
+speedLabel.BackgroundTransparency = 1
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.Font = Enum.Font.Arcade
+speedLabel.TextSize = 12
+speedLabel.Parent = mainFrame
+
+local speedSlider = Instance.new("TextBox")
+speedSlider.Text = tostring(targetSpeed)
+speedSlider.Size = UDim2.new(0.8, 0, 0, 25)
+speedSlider.Position = UDim2.new(0.1, 0, 0.8, 0)
+speedSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedSlider.Font = Enum.Font.Arcade
+speedSlider.TextSize = 12
+speedSlider.Parent = mainFrame
+
+local sliderCorner = Instance.new("UICorner")
+sliderCorner.CornerRadius = UDim.new(0, 4)
+sliderCorner.Parent = speedSlider
+
+toggleButton.MouseButton1Click:Connect(function()
+    enabled = not enabled
+    
+    if enabled then
+        toggleButton.Text = "ON"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
+        enableSpeedBypass()
+    else
+        toggleButton.Text = "OFF"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+        disableSpeedBypass()
+    end
+end)
+
+speedSlider.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local newSpeed = tonumber(speedSlider.Text)
+        if newSpeed and newSpeed > 0 and newSpeed <= 200 then
+            targetSpeed = newSpeed
+            speedLabel.Text = "Speed: " .. targetSpeed
+        else
+            speedSlider.Text = tostring(targetSpeed)
         end
     end
+end)
 
-    return false
-end
-
--- === SPEED OVERRIDE ENGINE ===
-RunService.Heartbeat:Connect(function()
-    if not boosterEnabled then return end
-    
-    local char = Player.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
-    if hrp and hum and hum.MoveDirection.Magnitude > 0.1 then
-        -- Switches to Carry Speed if ANY visual brainrot is detected on the player
-        local targetSpeed = isHoldingBrainrot() and carrySpeed or normalSpeed
-        
-        local moveVel = hum.MoveDirection * targetSpeed
-        hrp.AssemblyLinearVelocity = Vector3.new(moveVel.X, hrp.AssemblyLinearVelocity.Y, moveVel.Z)
+player.CharacterAdded:Connect(function()
+    if enabled then
+        task.wait(0.5)
+        enableSpeedBypass()
     end
 end)
 
--- === PREMIUM UI (S4booster + Settings) ===
-local screenGui = Instance.new("ScreenGui", playerGui)
-screenGui.ResetOnSpawn = false
-
-local function createNeonFrame(name, size, pos, color)
-    local f = Instance.new("Frame", screenGui)
-    f.Name = name; f.Size = size; f.Position = pos
-    f.BackgroundColor3 = Color3.fromRGB(10, 8, 15); f.BackgroundTransparency = 0.3
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 4)
-    local s = Instance.new("UIStroke", f)
-    s.Thickness = 1.2; s.Color = color or Color3.fromRGB(190, 0, 255)
-    return f
-end
-
--- Main Button
-local boosterCont = createNeonFrame("BoosterMain", UDim2.new(0, 180, 0, 40), UDim2.new(0.5, -90, 0.1, 0))
-local mainBtn = Instance.new("TextButton", boosterCont)
-mainBtn.Size = UDim2.new(1, 0, 1, 0); mainBtn.BackgroundTransparency = 1; mainBtn.Text = "S4booster"; mainBtn.TextColor3 = Color3.new(1,1,1); mainBtn.Font = Enum.Font.GothamBold
-
--- Gear Icon
-local gear = Instance.new("TextButton", boosterCont)
-gear.Size = UDim2.new(0, 20, 0, 20); gear.Position = UDim2.new(1, -25, 0.5, -10); gear.Text = "⚙"; gear.TextColor3 = Color3.fromRGB(0, 200, 255); gear.BackgroundTransparency = 1
-
--- Settings Sub-Menu
-local setGui = createNeonFrame("BoosterSettings", UDim2.new(0, 220, 0, 160), UDim2.new(0.5, 100, 0.5, -80))
-setGui.Visible = false
-
-local function addInput(txt, val, y)
-    local l = Instance.new("TextLabel", setGui)
-    l.Text = txt; l.Position = UDim2.new(0, 10, 0, y); l.Size = UDim2.new(0, 100, 0, 20); l.TextColor3 = Color3.new(0.8, 0.8, 0.8); l.BackgroundTransparency = 1; l.TextXAlignment = "Left"
-    local i = Instance.new("TextBox", setGui)
-    i.Size = UDim2.new(0, 80, 0, 22); i.Position = UDim2.new(0, 125, 0, y); i.Text = tostring(val); i.BackgroundColor3 = Color3.fromRGB(25, 25, 35); i.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", i)
-    return i
-end
-
-local nInp = addInput("Normal (1-60):", normalSpeed, 25)
-local cInp = addInput("Carry (1-29):", carrySpeed, 65)
-local save = Instance.new("TextButton", setGui)
-save.Size = UDim2.new(0.8, 0, 0, 30); save.Position = UDim2.new(0.1, 0, 1, -45); save.Text = "SAVE SETTINGS"; save.BackgroundColor3 = Color3.fromRGB(30, 45, 30); save.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", save)
-
--- === BUTTON CONNECTIONS ===
-mainBtn.MouseButton1Click:Connect(function()
-    boosterEnabled = not boosterEnabled
-    boosterCont.UIStroke.Color = boosterEnabled and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(190, 0, 255)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        if not enabled then
+            enabled = true
+            toggleButton.Text = "ON"
+            toggleButton.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
+            enableSpeedBypass()
+        end
+    end
 end)
 
-gear.MouseButton1Click:Connect(function() setGui.Visible = not setGui.Visible end)
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        if enabled then
+            enabled = false
+            toggleButton.Text = "OFF"
+            toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+            disableSpeedBypass()
+        end
+    end
+end)
 
-save.MouseButton1Click:Connect(function()
-    normalSpeed = math.clamp(tonumber(nInp.Text) or 60, 1, 60)
-    carrySpeed = math.clamp(tonumber(cInp.Text) or 29, 1, 29)
-    save.Text = "SAVED!"; task.wait(0.5); save.Text = "SAVE SETTINGS"
+local dragging = false
+local dragInput, dragStart, startPos
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
 end)
