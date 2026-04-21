@@ -1,142 +1,92 @@
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
 local Players = game:GetService("Players")
+
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- 1. Create the Main ScreenGui
+-- 1. Main Container
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "CustomDashboardUI"
-screenGui.ResetOnSpawn = false
+screenGui.Name = "S4duels_TopUI"
+screenGui.IgnoreGuiInset = true
 screenGui.Parent = playerGui
 
--- === THEME COLORS ===
-local bgColor = Color3.fromRGB(45, 45, 65)
-local elementColor = Color3.fromRGB(65, 65, 90)
-local textColor = Color3.fromRGB(255, 255, 255)
-local accentColor = Color3.fromRGB(138, 43, 226) -- Purple-ish accent
+-- 2. Main Hub Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainBanner"
+mainFrame.Size = UDim2.new(0, 320, 0, 90)
+mainFrame.Position = UDim2.new(0.5, -160, 0, 40)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
 
--- 2. Top Center Panel (The "Hub" banner)
-local topFrame = Instance.new("Frame")
-topFrame.Name = "TopMenu"
-topFrame.Size = UDim2.new(0, 300, 0, 80)
-topFrame.Position = UDim2.new(0.5, -150, 0, 20) -- Centered at the top
-topFrame.BackgroundColor3 = bgColor
-topFrame.BorderSizePixel = 0
-topFrame.Parent = screenGui
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.Parent = mainFrame
 
-local topCorner = Instance.new("UICorner")
-topCorner.CornerRadius = UDim.new(0, 12)
-topCorner.Parent = topFrame
+-- Outer Glow/Stroke
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(80, 50, 150)
+stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+stroke.Parent = mainFrame
 
+-- 3. The Title (S4duels)
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, 0, 0, 30)
+titleLabel.Name = "Title"
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
 titleLabel.Position = UDim2.new(0, 0, 0, 10)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "Main Dashboard"
-titleLabel.TextColor3 = accentColor
-titleLabel.TextSize = 22
+titleLabel.Text = "S4duels"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.Font = Enum.Font.GothamBold
-titleLabel.Parent = topFrame
+titleLabel.TextSize = 28
+titleLabel.Parent = mainFrame
 
-local subtitleLabel = Instance.new("TextLabel")
-subtitleLabel.Size = UDim2.new(1, 0, 0, 20)
-subtitleLabel.Position = UDim2.new(0, 0, 0, 40)
-subtitleLabel.BackgroundTransparency = 1
-subtitleLabel.Text = "Status: Online | Ping: 50ms"
-subtitleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-subtitleLabel.TextSize = 14
-subtitleLabel.Font = Enum.Font.Gotham
-subtitleLabel.Parent = topFrame
+-- Purple Gradient for Title
+local titleGradient = Instance.new("UIGradient")
+titleGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 100, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 200, 255))
+})
+titleGradient.Parent = titleLabel
 
--- 3. Right Side Panel (For Modules/Toggles)
-local sideFrame = Instance.new("Frame")
-sideFrame.Name = "SideMenu"
-sideFrame.Size = UDim2.new(0, 220, 0, 350)
-sideFrame.Position = UDim2.new(1, -240, 0, 120) -- Anchored to the right
-sideFrame.BackgroundColor3 = bgColor
-sideFrame.BorderSizePixel = 0
-sideFrame.Parent = screenGui
+-- 4. Stats Label (FPS/Ping)
+local statsLabel = Instance.new("TextLabel")
+statsLabel.Name = "Stats"
+statsLabel.Size = UDim2.new(1, 0, 0, 25)
+statsLabel.Position = UDim2.new(0, 0, 0, 50)
+statsLabel.BackgroundTransparency = 1
+statsLabel.Text = "FPS: 00 | PING: 00ms"
+statsLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+statsLabel.Font = Enum.Font.Code
+statsLabel.TextSize = 14
+statsLabel.Parent = mainFrame
 
-local sideCorner = Instance.new("UICorner")
-sideCorner.CornerRadius = UDim.new(0, 12)
-sideCorner.Parent = sideFrame
+-- 5. Toggle Button (Decorative/Visual)
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleButton"
+toggleBtn.Size = UDim2.new(0, 60, 0, 25)
+toggleBtn.Position = UDim2.new(0.5, -30, 1, 5)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+toggleBtn.Text = "Toggle"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Font = Enum.Font.GothamSemibold
+toggleBtn.TextSize = 12
+toggleBtn.Parent = mainFrame
 
-local sideTitle = Instance.new("TextLabel")
-sideTitle.Size = UDim2.new(1, -20, 0, 30)
-sideTitle.Position = UDim2.new(0, 10, 0, 5)
-sideTitle.BackgroundTransparency = 1
-sideTitle.Text = "Modules"
-sideTitle.TextColor3 = textColor
-sideTitle.TextXAlignment = Enum.TextXAlignment.Left
-sideTitle.TextSize = 16
-sideTitle.Font = Enum.Font.GothamBold
-sideTitle.Parent = sideFrame
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 5)
+btnCorner.Parent = toggleBtn
 
-local separator = Instance.new("Frame")
-separator.Size = UDim2.new(1, -20, 0, 2)
-separator.Position = UDim2.new(0, 10, 0, 35)
-separator.BackgroundColor3 = elementColor
-separator.BorderSizePixel = 0
-separator.Parent = sideFrame
-
--- 4. Reusable Function to Create Buttons/Toggles
-local function createButton(parent, name, yOffset)
-    local button = Instance.new("TextButton")
-    button.Name = name
-    button.Size = UDim2.new(1, -20, 0, 35)
-    button.Position = UDim2.new(0, 10, 0, yOffset)
-    button.BackgroundColor3 = elementColor
-    button.Text = "  " .. name
-    button.TextColor3 = textColor
-    button.TextXAlignment = Enum.TextXAlignment.Left
-    button.Font = Enum.Font.GothamSemibold
-    button.TextSize = 14
-    button.AutoButtonColor = true
-    button.Parent = parent
-    
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 6)
-    btnCorner.Parent = button
-    
-    -- Visual Indicator (fake toggle switch)
-    local indicator = Instance.new("Frame")
-    indicator.Size = UDim2.new(0, 20, 0, 20)
-    indicator.Position = UDim2.new(1, -30, 0.5, -10)
-    indicator.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-    indicator.Parent = button
-    
-    local indCorner = Instance.new("UICorner")
-    indCorner.CornerRadius = UDim.new(1, 0)
-    indCorner.Parent = indicator
-
-    return button, indicator
-end
-
--- 5. Populate the Side Panel and Add Your "Logistics" Here
-local btn1, ind1 = createButton(sideFrame, "Feature Toggle 1", 50)
-local btn2, ind2 = createButton(sideFrame, "Feature Toggle 2", 95)
-local btn3, ind3 = createButton(sideFrame, "Execute Action", 140)
-
--- Example Logic Attachment
-local toggle1State = false
-btn1.MouseButton1Click:Connect(function()
-    toggle1State = not toggle1State
-    if toggle1State then
-        ind1.BackgroundColor3 = accentColor -- Turn "On" visually
-        print("Feature 1 Activated")
-        -- Add your enable code here
-    else
-        ind1.BackgroundColor3 = Color3.fromRGB(100, 100, 100) -- Turn "Off" visually
-        print("Feature 1 Deactivated")
-        -- Add your disable code here
-    end
-end)
-
-btn3.MouseButton1Click:Connect(function()
-    -- This is a click button rather than a toggle
-    ind3.BackgroundColor3 = accentColor
-    task.wait(0.1)
-    ind3.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-    
-    print("Action Executed!")
-    -- Add your execution code here
+-- === LOGIC: Performance Counters ===
+local lastUpdate = 0
+RunService.RenderStepped:Connect(function(deltaTime)
+	lastUpdate = lastUpdate + deltaTime
+	if lastUpdate >= 0.5 then -- Update every half second
+		local fps = math.floor(1 / deltaTime)
+		local ping = math.floor(player:GetNetworkPing() * 2000) -- Convert to ms
+		statsLabel.Text = string.format("FPS: %d  |  PING: %dms", fps, ping)
+		lastUpdate = 0
+	end
 end)
