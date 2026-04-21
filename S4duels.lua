@@ -9,123 +9,116 @@ local playerGui = player:WaitForChild("PlayerGui")
 local NEON_PURPLE = Color3.fromRGB(180, 0, 255)
 local NEON_BLUE = Color3.fromRGB(0, 180, 255)
 local BG_COLOR = Color3.fromRGB(25, 20, 35)
-local BG_TRANSPARENCY = 0.4
+local BG_TRANSPARENCY = 0.4 -- Transparent background for all frames
 local guiLocked = false
 
--- === MOBILE-FRIENDLY DRAGGING (FOR ALL BUTTONS) ===
+-- === UNIVERSAL DRAGGABLE SYSTEM ===
 local function makeDraggable(frame)
-    local dragging = false
-    local dragInput, dragStart, startPos
-
+    local dragging, dragInput, dragStart, startPos
     frame.InputBegan:Connect(function(input)
         if guiLocked then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
         end
     end)
-
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-
     UserInputService.InputChanged:Connect(function(input)
-        if dragging and input == dragInput then
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
             frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
 end
 
--- === CORE SCREEN GUI ===
+-- === UI CREATION ===
 local screenGui = Instance.new("ScreenGui", playerGui)
-screenGui.Name = "S4duels_Mobile_Optimized"
+screenGui.Name = "S4duels_Neon_Final"
 screenGui.ResetOnSpawn = false
 
--- === INDEPENDENT LOCK BUTTON ===
-local lockFrame = Instance.new("Frame", screenGui)
-lockFrame.Size = UDim2.new(0, 110, 0, 40)
-lockFrame.Position = UDim2.new(0.5, -230, 0, 50)
-lockFrame.BackgroundColor3 = BG_COLOR
-lockFrame.BackgroundTransparency = BG_TRANSPARENCY
-Instance.new("UICorner", lockFrame)
-local lockStroke = Instance.new("UIStroke", lockFrame)
-lockStroke.Thickness = 2
-lockStroke.Color = NEON_BLUE
+local function createStyledFrame(name, size, pos, strokeColor)
+    local frame = Instance.new("Frame", screenGui)
+    frame.Name = name; frame.Size = size; frame.Position = pos
+    frame.BackgroundColor3 = BG_COLOR
+    frame.BackgroundTransparency = BG_TRANSPARENCY -- Set to transparent
+    frame.BorderSizePixel = 0; frame.Active = true
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    
+    -- Bold Neon Stroke
+    local s = Instance.new("UIStroke", frame)
+    s.Thickness = 3.5 -- Slightly bold
+    s.Color = strokeColor or NEON_PURPLE
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    
+    return frame, s
+end
+
+-- 1. LOCK GUI BUTTON (Independent & Draggable)
+local lockFrame, lockStroke = createStyledFrame("LockContainer", UDim2.new(0, 110, 0, 40), UDim2.new(0.5, -230, 0, 50), NEON_BLUE)
 makeDraggable(lockFrame)
 
 local lockBtn = Instance.new("TextButton", lockFrame)
-lockBtn.Size = UDim2.new(1, 0, 1, 0)
-lockBtn.BackgroundTransparency = 1
-lockBtn.Text = "Lock GUI"
-lockBtn.TextColor3 = Color3.new(1, 1, 1)
-lockBtn.Font = Enum.Font.GothamBold
-lockBtn.TextSize = 14
+lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1
+lockBtn.Text = "Lock GUI"; lockBtn.TextColor3 = Color3.new(1, 1, 1)
+lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 14
 
--- === MAIN HEADER & TOGGLE ===
-local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 220, 0, 80)
-mainFrame.Position = UDim2.new(0.5, -110, 0, 50)
-mainFrame.BackgroundColor3 = BG_COLOR
-mainFrame.BackgroundTransparency = BG_TRANSPARENCY
-Instance.new("UICorner", mainFrame)
-Instance.new("UIStroke", mainFrame).Color = NEON_PURPLE
+-- 2. MAIN HEADER (S4duels)
+local mainFrame = createStyledFrame("S4duels", UDim2.new(0, 220, 0, 80), UDim2.new(0.5, -110, 0, 50))
 makeDraggable(mainFrame)
 
+local titleLabel = Instance.new("TextLabel", mainFrame)
+titleLabel.Size = UDim2.new(1, 0, 0, 35); titleLabel.Position = UDim2.new(0, 0, 0, 5)
+titleLabel.Text = "S4duels"; titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.Font = Enum.Font.GothamBold; titleLabel.TextSize = 22; titleLabel.BackgroundTransparency = 1
+
 local statsLabel = Instance.new("TextLabel", mainFrame)
-statsLabel.Size = UDim2.new(1, 0, 0, 20)
-statsLabel.Position = UDim2.new(0, 0, 0, 40)
-statsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-statsLabel.BackgroundTransparency = 1
-statsLabel.Text = "FPS: 0 | PING: 0ms"
+statsLabel.Size = UDim2.new(1, 0, 0, 20); statsLabel.Position = UDim2.new(0, 0, 0, 40)
+statsLabel.TextColor3 = Color3.fromRGB(200, 200, 200); statsLabel.Font = Enum.Font.Code; statsLabel.BackgroundTransparency = 1
 
 local toggleBtn = Instance.new("TextButton", mainFrame)
-toggleBtn.Size = UDim2.new(0, 85, 0, 30)
-toggleBtn.Position = UDim2.new(0.5, -42, 1, 10)
-toggleBtn.BackgroundColor3 = BG_COLOR
-toggleBtn.Text = "Toggle Menu"
-toggleBtn.TextColor3 = Color3.new(1, 1, 1)
-Instance.new("UICorner", toggleBtn)
-Instance.new("UIStroke", toggleBtn).Color = NEON_PURPLE
+toggleBtn.Size = UDim2.new(0, 90, 0, 30); toggleBtn.Position = UDim2.new(0.5, -45, 1, 10)
+toggleBtn.BackgroundColor3 = BG_COLOR; toggleBtn.BackgroundTransparency = 0.2
+toggleBtn.Text = "Toggle Menu"; toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", toggleBtn)
+local tStroke = Instance.new("UIStroke", toggleBtn); tStroke.Color = NEON_PURPLE; tStroke.Thickness = 2
 
--- === S4HUB MENU ===
-local settingsFrame = Instance.new("Frame", screenGui)
-settingsFrame.Size = UDim2.new(0, 420, 0, 300)
-settingsFrame.Position = UDim2.new(0.5, -210, 0.5, -150)
-settingsFrame.BackgroundColor3 = BG_COLOR
+-- 3. SETTINGS MENU (S4HUB)
+local settingsFrame = createStyledFrame("S4HUB", UDim2.new(0, 420, 0, 320), UDim2.new(0.5, -210, 0.5, -160))
 settingsFrame.Visible = false
-Instance.new("UICorner", settingsFrame)
-Instance.new("UIStroke", settingsFrame).Color = NEON_PURPLE
 makeDraggable(settingsFrame)
 
-local scroll = Instance.new("ScrollingFrame", settingsFrame)
-scroll.Size = UDim2.new(1, -30, 1, -60)
-scroll.Position = UDim2.new(0, 15, 0, 50)
-scroll.BackgroundTransparency = 1
-local grid = Instance.new("UIGridLayout", scroll)
-grid.CellSize = UDim2.new(0.48, 0, 0, 45)
+local hubTitle = Instance.new("TextLabel", settingsFrame)
+hubTitle.Size = UDim2.new(1, 0, 0, 50); hubTitle.Text = "S4HUB"
+hubTitle.TextColor3 = Color3.new(1, 1, 1); hubTitle.Font = Enum.Font.GothamBold; hubTitle.TextSize = 24; hubTitle.BackgroundTransparency = 1
 
--- === BUTTON GENERATION ===
+local scroll = Instance.new("ScrollingFrame", settingsFrame)
+scroll.Size = UDim2.new(1, -30, 1, -70); scroll.Position = UDim2.new(0, 15, 0, 60); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
+local grid = Instance.new("UIGridLayout", scroll)
+grid.CellSize = UDim2.new(0.48, 0, 0, 50); grid.CellPadding = UDim2.new(0.04, 0, 0, 10)
+
+-- === BUTTONS & LOGISTICS EXECUTION ===
 for i = 1, 8 do
     local btn = Instance.new("TextButton", scroll)
-    btn.BackgroundColor3 = Color3.fromRGB(50, 45, 65)
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    Instance.new("UICorner", btn)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 40, 60); btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamSemibold; btn.TextSize = 16; Instance.new("UICorner", btn)
 
     if i == 1 then
         btn.Text = "Autoplay"
         btn.MouseButton1Click:Connect(function()
-            -- EXECUTING THE S4DUELS (1).LUA LOGISTICS
-            -- This runs the specific code from your file
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/AntiLoser/Roblox/main/S4duels_Autoplay_Source.lua"))()
-            btn.Text = "Running..."
-            task.wait(2)
+            -- Executes the logistics from S4duels (1) (1).lua
+            local success, err = pcall(function()
+                loadstring([[ 
+                    -- Paste the entire obfuscated code from S4duels (1) (1).lua here for direct execution
+                    -- For example: return(function(...) local X={"\049\057\106\101\109\097\061\061"; ... } end)(...)
+                ]])()
+            end)
+            btn.Text = success and "Executed" or "Error!"
+            task.wait(1.5)
             btn.Text = "Autoplay"
         end)
     else
@@ -133,7 +126,7 @@ for i = 1, 8 do
     end
 end
 
--- === LOGIC CONNECTIONS ===
+-- === CONNECTIONS ===
 toggleBtn.MouseButton1Click:Connect(function() settingsFrame.Visible = not settingsFrame.Visible end)
 lockBtn.MouseButton1Click:Connect(function()
     guiLocked = not guiLocked
