@@ -19,17 +19,20 @@ screenGui.Name = "S4duels_Interface"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- === FIXED DRAGGING FUNCTIONALITY ===
+-- === ADVANCED DRAGGING FUNCTION (LOCKED-AWARE) ===
 local function makeDraggable(frame)
-	local dragging, dragInput, dragStart, startPos
+	local dragging = false
+	local dragInput, dragStart, startPos
 
 	frame.InputBegan:Connect(function(input)
-		-- Check guiLocked right when the click starts
-		if not guiLocked and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+		-- If GUI is locked, we exit immediately so no dragging starts
+		if guiLocked then return end 
+
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
 			dragStart = input.Position
 			startPos = frame.Position
-			
+
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
@@ -39,7 +42,13 @@ local function makeDraggable(frame)
 	end)
 
 	frame.InputChanged:Connect(function(input)
-		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			-- Final safety check: if someone locks while dragging, stop dragging
+			if guiLocked then 
+				dragging = false 
+				return 
+			end
+			
 			local delta = input.Position - dragStart
 			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		end
@@ -70,7 +79,7 @@ local function createStyledFrame(name, size, pos)
 end
 
 -- === MAIN HEADER ===
-local mainFrame, mainStroke = createStyledFrame("MainHeader", UDim2.new(0, 300, 0, 90), UDim2.new(0.5, -150, 0, 50))
+local mainFrame = createStyledFrame("MainHeader", UDim2.new(0, 300, 0, 90), UDim2.new(0.5, -150, 0, 50))
 makeDraggable(mainFrame)
 
 local title = Instance.new("TextLabel")
@@ -92,7 +101,7 @@ statsLabel.Font = Enum.Font.Code
 statsLabel.BackgroundTransparency = 1
 statsLabel.Parent = mainFrame
 
--- === LOCK BUTTON ===
+-- === LOCK BUTTON (Linked to Header) ===
 local lockBtn = Instance.new("TextButton")
 lockBtn.Size = UDim2.new(0, 80, 0, 25)
 lockBtn.Position = UDim2.new(0, -90, 0, 0)
@@ -114,7 +123,7 @@ lockStroke.Thickness = 2
 lockStroke.Parent = lockBtn
 
 -- === SETTINGS MENU ===
-local settingsFrame, settingsStroke = createStyledFrame("Settings", UDim2.new(0, 250, 0, 380), UDim2.new(0.5, -125, 0.5, -190))
+local settingsFrame = createStyledFrame("Settings", UDim2.new(0, 250, 0, 380), UDim2.new(0.5, -125, 0.5, -190))
 settingsFrame.Visible = false
 makeDraggable(settingsFrame)
 
@@ -129,12 +138,12 @@ settingsTitle.Parent = settingsFrame
 -- Close Button (Top Right)
 local closeBtn = Instance.new("TextButton")
 closeBtn.Name = "CloseBtn"
-closeBtn.Size = UDim2.new(0, 25, 0, 25)
+closeBtn.Size = UDim2.new(0, 26, 0, 26)
 closeBtn.Position = UDim2.new(1, -30, 0, 10)
-closeBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+closeBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 20)
 closeBtn.Text = "×"
 closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.TextSize = 20
+closeBtn.TextSize = 18
 closeBtn.Font = Enum.Font.GothamBold
 closeBtn.Parent = settingsFrame
 
@@ -144,13 +153,13 @@ closeCorner.Parent = closeBtn
 
 local closeStroke = Instance.new("UIStroke")
 closeStroke.Color = NEON_PURPLE
-closeStroke.Thickness = 1.5
+closeStroke.Thickness = 2
 closeStroke.Parent = closeBtn
 
--- Settings Buttons List
+-- Scrolling List for Buttons
 local scrollingFrame = Instance.new("ScrollingFrame")
 scrollingFrame.Size = UDim2.new(1, -20, 1, -60)
-scrollingFrame.Position = UDim2.new(0, 10, 0, 50)
+scrollingFrame.Position = UDim2.new(0, 10, 0, 55)
 scrollingFrame.BackgroundTransparency = 1
 scrollingFrame.BorderSizePixel = 0
 scrollingFrame.ScrollBarThickness = 2
@@ -163,17 +172,15 @@ list.Parent = scrollingFrame
 
 for i = 1, 8 do
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0.9, 0, 0, 32)
-	btn.BackgroundColor3 = Color3.fromRGB(45, 40, 60)
+	btn.Size = UDim2.new(0.9, 0, 0, 35)
+	btn.BackgroundColor3 = Color3.fromRGB(50, 45, 65)
 	btn.Text = "s4loading"
 	btn.TextColor3 = Color3.new(1, 1, 1)
 	btn.Font = Enum.Font.Gotham
 	btn.TextSize = 14
 	btn.Parent = scrollingFrame
 	
-	local bCorner = Instance.new("UICorner")
-	bCorner.CornerRadius = UDim.new(0, 4)
-	bCorner.Parent = btn
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
 end
 
 -- === TOGGLE LOGIC ===
@@ -195,19 +202,19 @@ closeBtn.MouseButton1Click:Connect(function()
 	settingsFrame.Visible = false
 end)
 
--- === LOCK LOGIC ===
+-- === LOCK BUTTON LOGIC ===
 lockBtn.MouseButton1Click:Connect(function()
 	guiLocked = not guiLocked
 	if guiLocked then
 		lockBtn.Text = "Locked"
-		lockStroke.Color = Color3.fromRGB(255, 50, 50) -- Turn red when locked
+		lockStroke.Color = Color3.fromRGB(255, 80, 80) -- Red for Locked
 	else
 		lockBtn.Text = "Lock GUI"
-		lockStroke.Color = NEON_BLUE
+		lockStroke.Color = NEON_BLUE -- Blue for Unlocked
 	end
 end)
 
--- === PERFORMANCE UPDATE (Every 0.5s) ===
+-- === PERFORMANCE CLOCK (0.5s Refresh) ===
 task.spawn(function()
 	while true do
 		local fps = math.floor(1 / RunService.RenderStepped:Wait())
