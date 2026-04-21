@@ -15,48 +15,31 @@ local boosterEnabled = false
 local normalSpeed = 60
 local carrySpeed = 29
 
--- === LOGISTICS: EXECUTION DETECTION ===
-local function isGrabExecuting()
-    local char = Player.Character
-    if not char then return false end
-
-    -- 1. Detect ProximityPrompt Execution (The Grab/Steal trigger)
-    for _, obj in pairs(game.Workspace:GetDescendants()) do
-        if obj:IsA("ProximityPrompt") and obj.Enabled then
-            -- If the prompt is currently being "held" or triggered by the player
-            if obj:GetCurrentKeyboardModifierKey() or UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-                local dist = (char.HumanoidRootPart.Position - obj.Parent:GetPivot().Position).Magnitude
-                if dist < 15 then return true end
-            end
-        end
-    end
-
-    -- 2. Visual Check (Is the Brainrot Model physically on the player?)
-    local checkParts = {char:FindFirstChild("Head"), char:FindFirstChild("UpperTorso")}
-    for _, limb in pairs(checkParts) do
-        if limb then
-            for _, child in pairs(limb:GetChildren()) do
-                if (child:IsA("Model") or child:IsA("BasePart")) and not child:IsA("Accessory") then
-                    return true
-                end
-            end
-        end
-    end
-
-    return false
-end
-
--- === ENGINE ===
-RunService.Heartbeat:Connect(function()
+-- === THE FORCE ENGINE (CFrame Bypass) ===
+-- This moves you by offset rather than velocity to bypass game slowdowns
+RunService.Heartbeat:Connect(function(dt)
     if not boosterEnabled then return end
+    
     local char = Player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     
     if hrp and hum and hum.MoveDirection.Magnitude > 0.1 then
-        local target = isGrabExecuting() and carrySpeed or normalSpeed
-        local vel = hum.MoveDirection * target
-        hrp.AssemblyLinearVelocity = Vector3.new(vel.X, hrp.AssemblyLinearVelocity.Y, vel.Z)
+        -- Logistics: Detect if holding/stealing
+        local isCarrying = false
+        
+        -- Check for visual brainrot or interaction UI
+        for _, v in pairs(char:GetDescendants()) do
+            if v:IsA("BillboardGui") or v.Name == "Stolen" or (v:IsA("BasePart") and not v:IsA("Accessory") and v.Parent == char) then
+                isCarrying = true
+                break
+            end
+        end
+        
+        -- Apply the force
+        local speed = isCarrying and carrySpeed or normalSpeed
+        -- Formula: Current Pos + (Direction * Speed * DeltaTime)
+        hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (speed * dt))
     end
 end)
 
@@ -70,38 +53,38 @@ local function createFrame(name, size, pos, accent, thick)
     f.BackgroundColor3 = BG_COLOR; f.BackgroundTransparency = 0.2
     Instance.new("UICorner", f).CornerRadius = UDim.new(0, 4)
     local s = Instance.new("UIStroke", f)
-    s.Thickness = thick or 2.2 -- Thicker neon lines
+    s.Thickness = thick or 2.8 -- Thicker Neon Lines
     s.Color = accent or NEON_PURPLE
     return f, s
 end
 
--- 1. FIXED LOCK SYSTEM
-local lockFrame, lockStroke = createFrame("Lock", UDim2.new(0, 95, 0, 32), UDim2.new(0.5, -240, 0, 50), NEON_BLUE, 1.8)
+-- 1. LOCK SYSTEM (Fixed)
+local lockFrame, lockStroke = createFrame("Lock", UDim2.new(0, 95, 0, 32), UDim2.new(0.5, -240, 0, 50), NEON_BLUE, 2)
 local lockBtn = Instance.new("TextButton", lockFrame)
 lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1; lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1,1,1); lockBtn.Font = "GothamBold"; lockBtn.TextSize = 11
 
--- 2. MAIN HEADER (REFINED)
-local mainFrame, mainStroke = createFrame("Main", UDim2.new(0, 180, 0, 85), UDim2.new(0.5, -90, 0, 50), NEON_PURPLE, 2.5)
+-- 2. MAIN HEADER
+local mainFrame = createFrame("Main", UDim2.new(0, 180, 0, 85), UDim2.new(0.5, -90, 0, 50), NEON_PURPLE, 3)
 local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 35); title.Text = "S4DUELS"; title.TextColor3 = Color3.new(1,1,1)
-title.Font = "ArialBold"; title.TextSize = 22; title.BackgroundTransparency = 1 -- Bolder Title
+title.Size = UDim2.new(1, 0, 0, 35); title.Text = "S4DUELS"; title.TextColor3 = Color3.new(1,1,1); title.Font = "ArialBold"; title.TextSize = 22; title.BackgroundTransparency = 1
 
 local stats = Instance.new("TextLabel", mainFrame)
-stats.Size = UDim2.new(1, 0, 0, 15); stats.Position = UDim2.new(0,0,0,40)
-stats.TextColor3 = Color3.fromRGB(180,180,180); stats.TextSize = 9; stats.BackgroundTransparency = 1 -- Smaller Stats
+stats.Size = UDim2.new(1, 0, 0, 15); stats.Position = UDim2.new(0,0,0,40); stats.TextColor3 = Color3.fromRGB(180,180,180); stats.TextSize = 9; stats.BackgroundTransparency = 1
 
 local toggleHub = Instance.new("TextButton", mainFrame)
-toggleHub.Size = UDim2.new(0, 70, 0, 24); toggleHub.Position = UDim2.new(0.5, -35, 1, 10)
-toggleHub.Text = "S4HUB"; toggleHub.BackgroundColor3 = BG_COLOR; toggleHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", toggleHub)
+toggleHub.Size = UDim2.new(0, 70, 0, 24); toggleHub.Position = UDim2.new(0.5, -35, 1, 10); toggleHub.Text = "S4HUB"; toggleHub.BackgroundColor3 = BG_COLOR; toggleHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", toggleHub)
 
 -- 3. HUB MENU
-local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 300), UDim2.new(0.5, -200, 0.5, -150), NEON_PURPLE, 2.2)
+local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 300), UDim2.new(0.5, -200, 0.5, -150), NEON_PURPLE, 3)
 hubFrame.Visible = false
 local closeHub = Instance.new("TextButton", hubFrame)
 closeHub.Size = UDim2.new(0, 24, 0, 24); closeHub.Position = UDim2.new(1, -30, 0, 10); closeHub.Text = "×"; closeHub.BackgroundColor3 = Color3.fromRGB(40,10,15); closeHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", closeHub).CornerRadius = UDim.new(1,0)
 
+local hubTitle = Instance.new("TextLabel", hubFrame)
+hubTitle.Size = UDim2.new(1, 0, 0, 50); hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = "ArialBold"; hubTitle.TextSize = 24; hubTitle.BackgroundTransparency = 1
+
 local scroll = Instance.new("ScrollingFrame", hubFrame)
-scroll.Size = UDim2.new(1, -20, 1, -70); scroll.Position = UDim2.new(0, 10, 0, 60); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
+scroll.Size = UDim2.new(1, -20, 1, -80); scroll.Position = UDim2.new(0, 10, 0, 65); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
 Instance.new("UIGridLayout", scroll).CellSize = UDim2.new(0.48, 0, 0, 40)
 
 -- 4. BOOSTER BUTTON
@@ -109,12 +92,11 @@ local boosterBtn = Instance.new("TextButton", scroll)
 boosterBtn.Text = "S4booster"; boosterBtn.BackgroundColor3 = Color3.fromRGB(20, 18, 25); boosterBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", boosterBtn)
 local bStroke = Instance.new("UIStroke", boosterBtn); bStroke.Color = Color3.fromRGB(60, 60, 70)
 
--- Gear Icon
 local gear = Instance.new("TextButton", boosterBtn)
 gear.Size = UDim2.new(0, 20, 0, 20); gear.Position = UDim2.new(1, -25, 0.5, -10); gear.Text = "⚙"; gear.TextColor3 = NEON_BLUE; gear.BackgroundTransparency = 1
 
 -- 5. SUB SETTINGS
-local subSet = createFrame("BoosterSettings", UDim2.new(0, 180, 0, 140), UDim2.new(0.5, 210, 0.5, -70), NEON_BLUE, 1.5)
+local subSet = createFrame("BoosterSettings", UDim2.new(0, 180, 0, 140), UDim2.new(0.5, 210, 0.5, -70), NEON_BLUE, 2)
 subSet.Visible = false
 
 local function addInp(t, v, y)
@@ -125,7 +107,7 @@ end
 local ni = addInp("Normal:", normalSpeed, 20); local ci = addInp("Carry:", carrySpeed, 55)
 local save = Instance.new("TextButton", subSet); save.Size = UDim2.new(0.8, 0, 0, 25); save.Position = UDim2.new(0.1, 0, 1, -35); save.Text = "SAVE"; save.BackgroundColor3 = Color3.fromRGB(30,40,30); save.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", save)
 
--- === LOGIC CONNECTIONS ===
+-- === CONNECTIONS ===
 lockBtn.MouseButton1Click:Connect(function()
     guiLocked = not guiLocked
     lockBtn.Text = guiLocked and "LOCKED" or "LOCK GUI"
@@ -145,20 +127,11 @@ save.MouseButton1Click:Connect(function()
     save.Text = "SAVED"; task.wait(0.5); save.Text = "SAVE"
 end)
 
--- DRAG LOGIC (Fixed for Lock)
+-- DRAG LOGIC
 local function drag(f)
     local d, st, sp
-    f.InputBegan:Connect(function(i) 
-        if not guiLocked and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then 
-            d = true; st = i.Position; sp = f.Position 
-        end 
-    end)
-    UserInputService.InputChanged:Connect(function(i) 
-        if d then 
-            local del = i.Position - st
-            f.Position = UDim2.new(sp.X.Scale, sp.X.Offset + del.X, sp.Y.Scale, sp.Y.Offset + del.Y) 
-        end 
-    end)
+    f.InputBegan:Connect(function(i) if not guiLocked and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then d = true; st = i.Position; sp = f.Position end end)
+    UserInputService.InputChanged:Connect(function(i) if d then local del = i.Position - st; f.Position = UDim2.new(sp.X.Scale, sp.X.Offset + del.X, sp.Y.Scale, sp.Y.Offset + del.Y) end end)
     UserInputService.InputEnded:Connect(function() d = false end)
 end
 drag(mainFrame); drag(hubFrame); drag(lockFrame); drag(subSet)
