@@ -15,11 +15,11 @@ local guiLocked = false
 
 -- === CORE SCREEN GUI ===
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "S4duels_Final_V2"
+screenGui.Name = "S4duels_FinalLayout"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- === UNIVERSAL DRAGGING FUNCTION (MOBILE & PC) ===
+-- === UNIVERSAL DRAGGING FUNCTION ===
 local function makeDraggable(frame)
 	local dragging = false
 	local dragInput, dragStart, startPos
@@ -76,7 +76,7 @@ local function createStyledFrame(name, size, pos, strokeColor)
 	return frame, stroke
 end
 
--- === 1. INDEPENDENT LOCK BUTTON (Moves alone) ===
+-- === 1. INDEPENDENT LOCK BUTTON ===
 local lockFrame, lockStroke = createStyledFrame("LockContainer", UDim2.new(0, 110, 0, 40), UDim2.new(0.5, -230, 0, 50), NEON_BLUE)
 makeDraggable(lockFrame)
 
@@ -89,7 +89,7 @@ lockBtn.Font = Enum.Font.GothamBold
 lockBtn.TextSize = 14
 lockBtn.Parent = lockFrame
 
--- === 2. MAIN HEADER (S4duels + Toggle attached) ===
+-- === 2. MAIN HEADER (WITH ATTACHED TOGGLE) ===
 local mainFrame = createStyledFrame("MainHeader", UDim2.new(0, 220, 0, 80), UDim2.new(0.5, -110, 0, 50))
 makeDraggable(mainFrame)
 
@@ -112,24 +112,25 @@ statsLabel.Font = Enum.Font.Code
 statsLabel.BackgroundTransparency = 1
 statsLabel.Parent = mainFrame
 
--- Toggle Button (Nested INSIDE mainFrame so it moves with it)
+-- Toggle Button (Re-attached to move with Main Frame)
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0, 90, 0, 30)
-toggleBtn.Position = UDim2.new(0.5, -45, 1, 5) -- Positioned just below the header
+toggleBtn.Size = UDim2.new(0, 80, 0, 30)
+toggleBtn.Position = UDim2.new(0.5, -40, 1, 10)
 toggleBtn.BackgroundColor3 = BG_COLOR
 toggleBtn.BackgroundTransparency = BG_TRANSPARENCY
 toggleBtn.Text = "Toggle"
 toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.TextSize = 14
+toggleBtn.TextSize = 13
 toggleBtn.Parent = mainFrame
 
-local tStroke = Instance.new("UIStroke", toggleBtn)
-tStroke.Color = NEON_PURPLE
-tStroke.Thickness = 2
+local toggleStroke = Instance.new("UIStroke")
+toggleStroke.Color = NEON_PURPLE
+toggleStroke.Thickness = 2
+toggleStroke.Parent = toggleBtn
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
--- === 3. S4HUB SETTINGS MENU (Independent) ===
+-- === 3. S4HUB GRID MENU ===
 local settingsFrame = createStyledFrame("S4HUB", UDim2.new(0, 420, 0, 300), UDim2.new(0.5, -210, 0.5, -150))
 settingsFrame.Visible = false
 makeDraggable(settingsFrame)
@@ -180,7 +181,7 @@ for i = 1, 8 do
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 end
 
--- === LOGIC ===
+-- === BUTTON LOGIC ===
 toggleBtn.MouseButton1Click:Connect(function()
 	settingsFrame.Visible = not settingsFrame.Visible
 end)
@@ -193,14 +194,14 @@ lockBtn.MouseButton1Click:Connect(function()
 	guiLocked = not guiLocked
 	if guiLocked then
 		lockBtn.Text = "Locked"
-		lockStroke.Color = Color3.fromRGB(255, 80, 80) -- Red for Locked
+		lockStroke.Color = Color3.fromRGB(255, 80, 80)
 	else
 		lockBtn.Text = "Lock GUI"
-		lockStroke.Color = NEON_BLUE -- Blue for Unlocked
+		lockStroke.Color = NEON_BLUE
 	end
 end)
 
--- Performance Update
+-- Performance update logic
 task.spawn(function()
 	while true do
 		local fps = math.floor(1 / RunService.RenderStepped:Wait())
