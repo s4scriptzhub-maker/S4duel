@@ -15,20 +15,26 @@ local boosterEnabled = false
 local normalSpeed = 60
 local carrySpeed = 29
 
--- === THE FORCE ENGINE (CFrame Bypass) ===
--- This moves you by offset rather than velocity to bypass game slowdowns
-RunService.Heartbeat:Connect(function(dt)
-    if not boosterEnabled then return end
-    
+-- === THE STABLE ENGINE (BodyVelocity Override) ===
+local bv = Instance.new("BodyVelocity")
+bv.MaxForce = Vector3.new(100000, 0, 100000) -- High power, but 0 on Y to prevent flying/resetting
+bv.Velocity = Vector3.zero
+
+RunService.Heartbeat:Connect(function()
     local char = Player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     
-    if hrp and hum and hum.MoveDirection.Magnitude > 0.1 then
-        -- Logistics: Detect if holding/stealing
-        local isCarrying = false
+    if not boosterEnabled or not hrp or not hum then 
+        bv.Parent = nil
+        return 
+    end
+
+    if hum.MoveDirection.Magnitude > 0.1 then
+        bv.Parent = hrp
         
-        -- Check for visual brainrot or interaction UI
+        -- Logistics: Detect Carry State
+        local isCarrying = false
         for _, v in pairs(char:GetDescendants()) do
             if v:IsA("BillboardGui") or v.Name == "Stolen" or (v:IsA("BasePart") and not v:IsA("Accessory") and v.Parent == char) then
                 isCarrying = true
@@ -36,10 +42,11 @@ RunService.Heartbeat:Connect(function(dt)
             end
         end
         
-        -- Apply the force
         local speed = isCarrying and carrySpeed or normalSpeed
-        -- Formula: Current Pos + (Direction * Speed * DeltaTime)
-        hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (speed * dt))
+        bv.Velocity = hum.MoveDirection * speed
+    else
+        bv.Velocity = Vector3.zero
+        bv.Parent = nil
     end
 end)
 
@@ -53,59 +60,59 @@ local function createFrame(name, size, pos, accent, thick)
     f.BackgroundColor3 = BG_COLOR; f.BackgroundTransparency = 0.2
     Instance.new("UICorner", f).CornerRadius = UDim.new(0, 4)
     local s = Instance.new("UIStroke", f)
-    s.Thickness = thick or 2.8 -- Thicker Neon Lines
+    s.Thickness = thick or 3.5 -- Thicker Neon Lines
     s.Color = accent or NEON_PURPLE
     return f, s
 end
 
--- 1. LOCK SYSTEM (Fixed)
-local lockFrame, lockStroke = createFrame("Lock", UDim2.new(0, 95, 0, 32), UDim2.new(0.5, -240, 0, 50), NEON_BLUE, 2)
+-- 1. LOCK SYSTEM
+local lockFrame, lockStroke = createFrame("Lock", UDim2.new(0, 95, 0, 32), UDim2.new(0.5, -240, 0, 50), NEON_BLUE, 2.5)
 local lockBtn = Instance.new("TextButton", lockFrame)
 lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1; lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1,1,1); lockBtn.Font = "GothamBold"; lockBtn.TextSize = 11
 
--- 2. MAIN HEADER
-local mainFrame = createFrame("Main", UDim2.new(0, 180, 0, 85), UDim2.new(0.5, -90, 0, 50), NEON_PURPLE, 3)
+-- 2. MAIN HEADER (BOLDED)
+local mainFrame = createFrame("Main", UDim2.new(0, 180, 0, 85), UDim2.new(0.5, -90, 0, 50), NEON_PURPLE, 4)
 local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 35); title.Text = "S4DUELS"; title.TextColor3 = Color3.new(1,1,1); title.Font = "ArialBold"; title.TextSize = 22; title.BackgroundTransparency = 1
+title.Size = UDim2.new(1, 0, 0, 35); title.Text = "S4DUELS"; title.TextColor3 = Color3.new(1,1,1); title.Font = Enum.Font.GothamBold; title.TextSize = 24; title.BackgroundTransparency = 1
 
 local stats = Instance.new("TextLabel", mainFrame)
-stats.Size = UDim2.new(1, 0, 0, 15); stats.Position = UDim2.new(0,0,0,40); stats.TextColor3 = Color3.fromRGB(180,180,180); stats.TextSize = 9; stats.BackgroundTransparency = 1
+stats.Size = UDim2.new(1, 0, 0, 15); stats.Position = UDim2.new(0,0,0,42); stats.TextColor3 = Color3.fromRGB(180,180,180); stats.TextSize = 8.5; stats.BackgroundTransparency = 1 -- Smaller stats
 
 local toggleHub = Instance.new("TextButton", mainFrame)
 toggleHub.Size = UDim2.new(0, 70, 0, 24); toggleHub.Position = UDim2.new(0.5, -35, 1, 10); toggleHub.Text = "S4HUB"; toggleHub.BackgroundColor3 = BG_COLOR; toggleHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", toggleHub)
 
--- 3. HUB MENU
-local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 300), UDim2.new(0.5, -200, 0.5, -150), NEON_PURPLE, 3)
+-- 3. HUB MENU (TITLE FIXED)
+local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 300), UDim2.new(0.5, -200, 0.5, -150), NEON_PURPLE, 3.8)
 hubFrame.Visible = false
 local closeHub = Instance.new("TextButton", hubFrame)
-closeHub.Size = UDim2.new(0, 24, 0, 24); closeHub.Position = UDim2.new(1, -30, 0, 10); closeHub.Text = "×"; closeHub.BackgroundColor3 = Color3.fromRGB(40,10,15); closeHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", closeHub).CornerRadius = UDim.new(1,0)
+closeHub.Size = UDim2.new(0, 24, 0, 24); closeHub.Position = UDim2.new(1, -30, 0, 10); closeHub.Text = "×"; closeHub.BackgroundColor3 = Color3.fromRGB(45,15,20); closeHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", closeHub).CornerRadius = UDim.new(1,0)
 
 local hubTitle = Instance.new("TextLabel", hubFrame)
-hubTitle.Size = UDim2.new(1, 0, 0, 50); hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = "ArialBold"; hubTitle.TextSize = 24; hubTitle.BackgroundTransparency = 1
+hubTitle.Size = UDim2.new(1, 0, 0, 50); hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = Enum.Font.GothamBold; hubTitle.TextSize = 26; hubTitle.BackgroundTransparency = 1
 
 local scroll = Instance.new("ScrollingFrame", hubFrame)
-scroll.Size = UDim2.new(1, -20, 1, -80); scroll.Position = UDim2.new(0, 10, 0, 65); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
+scroll.Size = UDim2.new(1, -20, 1, -85); scroll.Position = UDim2.new(0, 10, 0, 70); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
 Instance.new("UIGridLayout", scroll).CellSize = UDim2.new(0.48, 0, 0, 40)
 
 -- 4. BOOSTER BUTTON
 local boosterBtn = Instance.new("TextButton", scroll)
-boosterBtn.Text = "S4booster"; boosterBtn.BackgroundColor3 = Color3.fromRGB(20, 18, 25); boosterBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", boosterBtn)
-local bStroke = Instance.new("UIStroke", boosterBtn); bStroke.Color = Color3.fromRGB(60, 60, 70)
+boosterBtn.Text = "S4booster"; boosterBtn.BackgroundColor3 = Color3.fromRGB(22, 18, 30); boosterBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", boosterBtn)
+local bStroke = Instance.new("UIStroke", boosterBtn); bStroke.Color = Color3.fromRGB(70, 70, 80)
 
 local gear = Instance.new("TextButton", boosterBtn)
 gear.Size = UDim2.new(0, 20, 0, 20); gear.Position = UDim2.new(1, -25, 0.5, -10); gear.Text = "⚙"; gear.TextColor3 = NEON_BLUE; gear.BackgroundTransparency = 1
 
 -- 5. SUB SETTINGS
-local subSet = createFrame("BoosterSettings", UDim2.new(0, 180, 0, 140), UDim2.new(0.5, 210, 0.5, -70), NEON_BLUE, 2)
+local subSet = createFrame("BoosterSettings", UDim2.new(0, 180, 0, 140), UDim2.new(0.5, 210, 0.5, -70), NEON_BLUE, 2.5)
 subSet.Visible = false
 
 local function addInp(t, v, y)
     local l = Instance.new("TextLabel", subSet); l.Text = t; l.Position = UDim2.new(0, 10, 0, y); l.Size = UDim2.new(0, 70, 0, 20); l.TextColor3 = Color3.new(0.7,0.7,0.7); l.BackgroundTransparency = 1; l.TextSize = 10
-    local i = Instance.new("TextBox", subSet); i.Text = tostring(v); i.Position = UDim2.new(0, 90, 0, y); i.Size = UDim2.new(0, 70, 0, 20); i.BackgroundColor3 = Color3.fromRGB(20,20,25); i.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", i)
+    local i = Instance.new("TextBox", subSet); i.Text = tostring(v); i.Position = UDim2.new(0, 90, 0, y); i.Size = UDim2.new(0, 75, 0, 22); i.BackgroundColor3 = Color3.fromRGB(20,20,25); i.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", i)
     return i
 end
 local ni = addInp("Normal:", normalSpeed, 20); local ci = addInp("Carry:", carrySpeed, 55)
-local save = Instance.new("TextButton", subSet); save.Size = UDim2.new(0.8, 0, 0, 25); save.Position = UDim2.new(0.1, 0, 1, -35); save.Text = "SAVE"; save.BackgroundColor3 = Color3.fromRGB(30,40,30); save.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", save)
+local save = Instance.new("TextButton", subSet); save.Size = UDim2.new(0.8, 0, 0, 25); save.Position = UDim2.new(0.1, 0, 1, -35); save.Text = "SAVE"; save.BackgroundColor3 = Color3.fromRGB(30,45,30); save.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", save)
 
 -- === CONNECTIONS ===
 lockBtn.MouseButton1Click:Connect(function()
@@ -116,7 +123,7 @@ end)
 
 boosterBtn.MouseButton1Click:Connect(function()
     boosterEnabled = not boosterEnabled
-    bStroke.Color = boosterEnabled and NEON_PURPLE or Color3.fromRGB(60, 60, 70)
+    bStroke.Color = boosterEnabled and NEON_PURPLE or Color3.fromRGB(70, 70, 80)
 end)
 
 gear.MouseButton1Click:Connect(function() subSet.Visible = not subSet.Visible end)
