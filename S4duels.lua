@@ -111,7 +111,28 @@ createHubButton("Rejoin Server", rejoinServer)
 createHubButton("Server Hop", serverHop)
 createHubButton("Kick Self", function() Player:Kick("Disconnected via S4HUB") end)
 
-for i = 1, 3 do createHubButton("s4loading", function() end) end
+-- Added Taunt Button Logic
+createHubButton("Taunt", function()
+    local TextChatService = game:GetService("TextChatService")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    
+    -- Checks if the game uses the new TextChatService
+    if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+        local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+        if channel then
+            channel:SendAsync("S4DUELS")
+        end
+    else
+        -- Fallback for older legacy chat systems
+        local sayMessageEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+        if sayMessageEvent and sayMessageEvent:FindFirstChild("SayMessageRequest") then
+            sayMessageEvent.SayMessageRequest:FireServer("S4DUELS", "All")
+        end
+    end
+end)
+
+-- Reduced the loop from 3 to 2 to perfectly replace one slot with the Taunt button
+for i = 1, 2 do createHubButton("s4loading", function() end) end
 
 -- === INTERACTIONS ===
 lockBtn.MouseButton1Click:Connect(function()
