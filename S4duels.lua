@@ -44,22 +44,21 @@ local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.Name = "S4_Shiny_Elite"
 screenGui.ResetOnSpawn = false
 
--- UPDATED: Sharper gradient and an animated rotation for a true "shiny" effect
+-- Enhanced Shiny Effect with smooth rotation
 local function applyShinyEffect(instance, color1, color2)
     local grad = Instance.new("UIGradient", instance)
     grad.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, color1),
         ColorSequenceKeypoint.new(0.4, color1),
-        ColorSequenceKeypoint.new(0.5, color2), -- The bright shine
+        ColorSequenceKeypoint.new(0.5, color2),
         ColorSequenceKeypoint.new(0.6, color1),
         ColorSequenceKeypoint.new(1, color1)
     })
     
-    -- Smooth animation loop to rotate the gradient
     task.spawn(function()
         local rotation = 0
         RunService.RenderStepped:Connect(function(deltaTime)
-            rotation = (rotation + (deltaTime * 50)) % 360 -- Adjust the 50 to make it spin faster/slower
+            rotation = (rotation + (deltaTime * 60)) % 360
             grad.Rotation = rotation
         end)
     end)
@@ -86,37 +85,37 @@ lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1; lockBt
 
 -- 2. MAIN HEADER
 local mainFrame = createFrame("Main", UDim2.new(0, 180, 0, 85), UDim2.new(0.5, -90, 0, 50), SHINY_PURPLE)
-local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 35); title.Text = "S4DUELS"; title.TextColor3 = Color3.new(1,1,1); title.Font = "ArialBold"; title.TextSize = 24; title.BackgroundTransparency = 1
-local tStroke = Instance.new("UIStroke", title); tStroke.Thickness = 1.5; applyShinyEffect(tStroke, SHINY_PURPLE, Color3.new(1,1,1))
+
+-- Styled S4DUELS Title Background
+local titleBg = Instance.new("Frame", mainFrame)
+titleBg.Size = UDim2.new(0.9, 0, 0, 35); titleBg.Position = UDim2.new(0.05, 0, 0, 5); titleBg.BackgroundColor3 = BG_COLOR; titleBg.BackgroundTransparency = 0.5
+Instance.new("UICorner", titleBg).CornerRadius = UDim.new(0, 4)
+local titleStroke = Instance.new("UIStroke", titleBg); titleStroke.Thickness = 1.2; applyShinyEffect(titleStroke, SHINY_PURPLE, Color3.new(1,1,1))
+
+local title = Instance.new("TextLabel", titleBg)
+title.Size = UDim2.new(1, 0, 1, 0); title.Text = "S4DUELS"; title.TextColor3 = Color3.new(1,1,1); title.Font = "ArialBold"; title.TextSize = 22; title.BackgroundTransparency = 1
 
 local stats = Instance.new("TextLabel", mainFrame)
 stats.Size = UDim2.new(1, 0, 0, 15); stats.Position = UDim2.new(0,0,0,42); stats.TextColor3 = Color3.fromRGB(200,200,200); stats.TextSize = 8.5; stats.BackgroundTransparency = 1
 
--- UPDATED: S4HUB toggle button now matches the header style
+-- S4HUB Toggle Button
 local toggleHub = Instance.new("TextButton", mainFrame)
-toggleHub.Size = UDim2.new(0, 80, 0, 26)
-toggleHub.Position = UDim2.new(0.5, -40, 1, 10)
-toggleHub.Text = "S4HUB"
-toggleHub.Font = "GothamBold"
-toggleHub.BackgroundColor3 = BG_COLOR
-toggleHub.BackgroundTransparency = 0.6
-toggleHub.TextColor3 = Color3.new(1,1,1)
+toggleHub.Size = UDim2.new(0, 80, 0, 26); toggleHub.Position = UDim2.new(0.5, -40, 1, 10); toggleHub.Text = "S4HUB"; toggleHub.Font = "GothamBold"; toggleHub.BackgroundColor3 = BG_COLOR; toggleHub.BackgroundTransparency = 0.6; toggleHub.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", toggleHub).CornerRadius = UDim.new(0, 4)
-
--- Adding the shiny stroke to the toggle button
-local thStroke = Instance.new("UIStroke", toggleHub)
-thStroke.Thickness = 1.2
-thStroke.Color = Color3.new(1,1,1)
-applyShinyEffect(thStroke, SHINY_PURPLE, Color3.new(1,1,1))
+local thStroke = Instance.new("UIStroke", toggleHub); thStroke.Thickness = 1.2; applyShinyEffect(thStroke, SHINY_PURPLE, Color3.new(1,1,1))
 
 -- 3. HUB MENU (S4HUB)
 local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 300), UDim2.new(0.5, -200, 0.5, -150), SHINY_PURPLE)
 hubFrame.Visible = false
 
-local hubTitle = Instance.new("TextLabel", hubFrame)
-hubTitle.Size = UDim2.new(1, 0, 0, 55); hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = "ArialBold"; hubTitle.TextSize = 28; hubTitle.BackgroundTransparency = 1
-local hTStroke = Instance.new("UIStroke", hubTitle); hTStroke.Thickness = 2; applyShinyEffect(hTStroke, SHINY_PURPLE, Color3.new(1,1,1))
+-- Styled S4HUB Title Background
+local hTitleBg = Instance.new("Frame", hubFrame)
+hTitleBg.Size = UDim2.new(0.95, 0, 0, 50); hTitleBg.Position = UDim2.new(0.025, 0, 0, 10); hTitleBg.BackgroundColor3 = BG_COLOR; hTitleBg.BackgroundTransparency = 0.5
+Instance.new("UICorner", hTitleBg).CornerRadius = UDim.new(0, 4)
+local hTitleStroke = Instance.new("UIStroke", hTitleBg); hTitleStroke.Thickness = 1.5; applyShinyEffect(hTitleStroke, SHINY_PURPLE, Color3.new(1,1,1))
+
+local hubTitle = Instance.new("TextLabel", hTitleBg)
+hubTitle.Size = UDim2.new(1, 0, 1, 0); hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = "ArialBold"; hubTitle.TextSize = 28; hubTitle.BackgroundTransparency = 1
 
 local closeHub = Instance.new("TextButton", hubFrame)
 closeHub.Size = UDim2.new(0, 24, 0, 24); closeHub.Position = UDim2.new(1, -30, 0, 15); closeHub.Text = "×"; closeHub.BackgroundColor3 = Color3.fromRGB(45,15,20); closeHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", closeHub).CornerRadius = UDim.new(1,0)
@@ -125,11 +124,12 @@ local scroll = Instance.new("ScrollingFrame", hubFrame)
 scroll.Size = UDim2.new(1, -20, 1, -90); scroll.Position = UDim2.new(0, 10, 0, 75); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
 Instance.new("UIGridLayout", scroll).CellSize = UDim2.new(0.48, 0, 0, 40)
 
--- === ADDING FUNCTIONAL BUTTONS ===
+-- === UPDATED HUB BUTTONS (MATCHING STYLE) ===
 local function createHubButton(text, func)
     local b = Instance.new("TextButton", scroll)
-    b.Text = text; b.BackgroundColor3 = Color3.fromRGB(20, 20, 30); b.TextColor3 = Color3.new(1,1,1); b.Font = "GothamSemibold"; Instance.new("UICorner", b)
-    local bs = Instance.new("UIStroke", b); bs.Color = Color3.fromRGB(80, 80, 90); bs.Thickness = 1
+    b.Text = text; b.BackgroundColor3 = BG_COLOR; b.BackgroundTransparency = 0.5; b.TextColor3 = Color3.new(1,1,1); b.Font = "GothamBold"; b.TextSize = 12
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
+    local bs = Instance.new("UIStroke", b); bs.Thickness = 1.2; applyShinyEffect(bs, SHINY_PURPLE, Color3.new(1,1,1))
     b.MouseButton1Click:Connect(func)
     return b
 end
@@ -138,19 +138,13 @@ createHubButton("Rejoin Server", rejoinServer)
 createHubButton("Server Hop", serverHop)
 createHubButton("Kick Self", function() Player:Kick("Disconnected via S4HUB") end)
 
--- Added Taunt Button Logic
 createHubButton("Taunt", function()
     local TextChatService = game:GetService("TextChatService")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    
-    -- Checks if the game uses the new TextChatService
     if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
         local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
-        if channel then
-            channel:SendAsync("S4DUELS")
-        end
+        if channel then channel:SendAsync("S4DUELS") end
     else
-        -- Fallback for older legacy chat systems
         local sayMessageEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
         if sayMessageEvent and sayMessageEvent:FindFirstChild("SayMessageRequest") then
             sayMessageEvent.SayMessageRequest:FireServer("S4DUELS", "All")
