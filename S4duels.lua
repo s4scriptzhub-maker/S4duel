@@ -160,7 +160,7 @@ createHubButton("Taunt", true, function(state)
         local tcs = game:GetService("TextChatService")
         if tcs.ChatVersion == Enum.ChatVersion.TextChatService then
             local c = tcs.TextChannels:FindFirstChild("RBXGeneral")
-            if c then c:SendAsync("S4DUELS") end
+            if c then c:SendAsync("S4DUELSFUCKER") end
         else
             local e = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
             if e and e:FindFirstChild("SayMessageRequest") then e.SayMessageRequest:FireServer("S4DUELS", "All") end
