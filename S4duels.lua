@@ -23,7 +23,7 @@ local States = {
     ["ESP"] = false,
     ["Inf Jump"] = false,
     ["Unwalk"] = false,
-    ["S4INTSMODE"] = false
+    ["duelfucker"] = false
 }
 
 local guiLocked = false
@@ -65,7 +65,6 @@ end
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "S4DUELS_ULTIMATE_HUD"
 screenGui.ResetOnSpawn = false
--- Safely parent the GUI
 pcall(function()
     if gethui then
         screenGui.Parent = gethui()
@@ -84,7 +83,6 @@ local function applyShinyGradient(parent, color1, color2)
         ColorSequenceKeypoint.new(1, color1)
     })
     
-    -- Smooth spinning animation
     task.spawn(function()
         local rotation = 0
         RunService.RenderStepped:Connect(function(deltaTime)
@@ -94,36 +92,33 @@ local function applyShinyGradient(parent, color1, color2)
     end)
 end
 
--- === PERFECTED DRAG ENGINE ===
-local function makeDraggable(frame, dragHandle)
-    local trigger = dragHandle or frame
+-- === PERFECTED SECURE DRAG ENGINE ===
+local function makeDraggable(frame, trigger)
+    trigger = trigger or frame
     local dragging = false
-    local dragInput, mousePos, framePos
+    local dragStart, startPos
 
     trigger.InputBegan:Connect(function(input)
-        if not guiLocked and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        if guiLocked then return end -- ENFORCE LOCK GUI
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-            mousePos = input.Position
-            framePos = frame.Position
-
-            input.Changed:Connect(function()
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            local connection
+            connection = input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
+                    connection:Disconnect()
                 end
             end)
         end
     end)
 
-    trigger.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-
     UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - mousePos
-            frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 end
@@ -157,7 +152,7 @@ lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1
 lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1, 1, 1); lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 12
 makeDraggable(lockFrame, lockBtn)
 
--- [2] S4HUB TOP-LEFT RETURN BUTTON (Visible in SaintsMode)
+-- [2] S4HUB TOP-LEFT RETURN BUTTON (Visible in duelfucker Mode)
 local returnFrame, returnStroke = createStyledFrame("ReturnHUB", UDim2.new(0, 120, 0, 40), UDim2.new(0, 15, 0, 15), NEON_BLUE)
 local returnBtn = Instance.new("TextButton", returnFrame)
 returnBtn.Size = UDim2.new(1, 0, 1, 0); returnBtn.BackgroundTransparency = 1
@@ -237,9 +232,9 @@ confirmSpeedBtn.Text = "CONFIRM SPEED"; confirmSpeedBtn.BackgroundColor3 = BG_CO
 Instance.new("UICorner", confirmSpeedBtn)
 local csbStroke = Instance.new("UIStroke", confirmSpeedBtn); csbStroke.Thickness = 1.2; csbStroke.Color = NEON_BLUE
 
--- [6] S4INTSMODE HUD (Container for draggable buttons)
-local saintsHUD = Instance.new("Frame", screenGui)
-saintsHUD.Size = UDim2.new(1, 0, 1, 0); saintsHUD.BackgroundTransparency = 1; saintsHUD.Visible = false
+-- [6] duelfucker HUD (Container for draggable buttons)
+local duelFuckerHUD = Instance.new("Frame", screenGui)
+duelFuckerHUD.Size = UDim2.new(1, 0, 1, 0); duelFuckerHUD.BackgroundTransparency = 1; duelFuckerHUD.Visible = false
 
 -- ==========================================
 -- ======== CENTRAL STATE SYNCHRONIZER ======
@@ -274,24 +269,26 @@ local function createSyncedButton(text, isToggle, parent, position, callback)
     local frame, stroke
     
     if parent == scrollFrame then
-        -- Settings Menu layout (Uses UI Grid Layout)
+        -- Settings Menu layout (Uses UI Grid Layout, not draggable here)
         frame = Instance.new("Frame", parent)
         frame.BackgroundColor3 = BG_COLOR; frame.BackgroundTransparency = 0.35; frame.BorderSizePixel = 0
         Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
         stroke = Instance.new("UIStroke", frame); stroke.Thickness = 1.5; stroke.Color = Color3.new(1,1,1)
         applyShinyGradient(stroke, SHINY_PURPLE, Color3.new(1, 1, 1))
     else
-        -- S4INTSMODE Tactical layout (Absolute positioning, completely draggable)
-        frame, stroke = createStyledFrame(text.."_S4INTS", UDim2.new(0, 145, 0, 48), position, SHINY_PURPLE, parent)
-        local btnHandle = Instance.new("TextButton", frame) -- Invisible handle to drag without blocking main click
-        btnHandle.Size = UDim2.new(1, 0, 1, 0); btnHandle.BackgroundTransparency = 1; btnHandle.Text = ""
-        makeDraggable(frame, btnHandle)
+        -- duelfucker Tactical layout (Absolute positioning, completely draggable)
+        frame, stroke = createStyledFrame(text.."_duelfucker", UDim2.new(0, 145, 0, 48), position, SHINY_PURPLE, parent)
     end
 
     -- The actual click button
     local actionBtn = Instance.new("TextButton", frame)
     actionBtn.Size = UDim2.new(1, 0, 1, 0); actionBtn.BackgroundTransparency = 1
     actionBtn.Text = text; actionBtn.TextColor3 = Color3.new(1, 1, 1); actionBtn.Font = Enum.Font.GothamBold; actionBtn.TextSize = 13
+
+    -- Attach Drag Engine directly to the action button for tactical HUD
+    if parent == duelFuckerHUD then
+        makeDraggable(frame, actionBtn)
+    end
 
     -- If Bat Fucker, inject the Gear Icon
     if text == "Bat Fucker" then
@@ -315,7 +312,7 @@ local function createSyncedButton(text, isToggle, parent, position, callback)
             task.spawn(function()
                 stroke.Color = Color3.new(1, 1, 1)
                 task.wait(0.2)
-                stroke.Color = Color3.new(1, 1, 1) -- Resets to standard gradient
+                stroke.Color = Color3.new(1, 1, 1)
             end)
             if callback then callback() end
         end
@@ -447,21 +444,34 @@ local function applyUnwalk(state)
     end
 end
 
+-- === INFINITE JUMP LOGIC (Fixed using JumpRequest) ===
+UserInputService.JumpRequest:Connect(function()
+    if States["Inf Jump"] and Player.Character then
+        local hum = Player.Character:FindFirstChild("Humanoid")
+        local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
+        if hum then
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+        if hrp then
+            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 50, hrp.AssemblyLinearVelocity.Z)
+        end
+    end
+end)
+
 -- ==========================================
 -- ========== MENU & BUTTON POPULATION ======
 -- ==========================================
 
-local function activateSaintsMode(state)
-    States["S4INTSMODE"] = state
-    saintsHUD.Visible = state
+local function activateDuelFuckerMode(state)
+    toggleFeature("duelfucker", state)
+    duelFuckerHUD.Visible = state
     returnFrame.Visible = state
     mainHeader.Visible = not state
     hubMenu.Visible = false
-    syncUIState("S4INTSMODE")
 end
 
 -- [POPULATE S4HUB SETTINGS]
-createSyncedButton("S4INTSMODE", true, scrollFrame, nil, activateSaintsMode)
+createSyncedButton("duelfucker", true, scrollFrame, nil, activateDuelFuckerMode)
 createSyncedButton("Bat Fucker", true, scrollFrame, nil, nil)
 createSyncedButton("ESP", true, scrollFrame, nil, nil)
 createSyncedButton("Inf Jump", true, scrollFrame, nil, nil)
@@ -479,12 +489,12 @@ createSyncedButton("Rejoin", false, scrollFrame, nil, function() TeleportService
 createSyncedButton("Server Hop", false, scrollFrame, nil, function() TeleportService:Teleport(game.PlaceId) end)
 createSyncedButton("Kick Self", false, scrollFrame, nil, function() Player:Kick("S4DUELS Manual Disconnect") end)
 
--- [POPULATE S4INTSMODE HUD]
+-- [POPULATE duelfucker HUD]
 -- Positioned dynamically, entirely draggable by the user.
-createSyncedButton("Bat Fucker", true, saintsHUD, UDim2.new(0.05, 0, 0.4, 0), nil)
-createSyncedButton("ESP", true, saintsHUD, UDim2.new(0.05, 0, 0.5, 0), nil)
-createSyncedButton("Inf Jump", true, saintsHUD, UDim2.new(0.85, 0, 0.4, 0), nil)
-createSyncedButton("Unwalk", true, saintsHUD, UDim2.new(0.85, 0, 0.5, 0), applyUnwalk)
+createSyncedButton("Bat Fucker", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.4, 0), nil)
+createSyncedButton("ESP", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.5, 0), nil)
+createSyncedButton("Inf Jump", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.4, 0), nil)
+createSyncedButton("Unwalk", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.5, 0), applyUnwalk)
 
 -- ==========================================
 -- ========== EVENT BINDINGS ================
@@ -515,8 +525,7 @@ lockBtn.MouseButton1Click:Connect(function()
 end)
 
 returnBtn.MouseButton1Click:Connect(function()
-    toggleFeature("S4INTSMODE", false)
-    activateSaintsMode(false)
+    activateDuelFuckerMode(false)
 end)
 
 openSettingsBtn.MouseButton1Click:Connect(function() hubMenu.Visible = not hubMenu.Visible end)
@@ -536,14 +545,6 @@ RunService.RenderStepped:Connect(function()
     
     -- 3. Bat Fucker Physics Loop
     runBatFuckerPhysics()
-    
-    -- 4. Infinite Jump Loop (Smooth float)
-    if States["Inf Jump"] and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-        if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = Player.Character.HumanoidRootPart
-            hrp.Velocity = Vector3.new(hrp.Velocity.X, 45, hrp.Velocity.Z)
-        end
-    end
 end)
 
 -- Initialize Data on Start
