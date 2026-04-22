@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ COMPACT MOBILE GUI, ANTI-TRIP PHYSICS, AGGRESSIVE AUTO-STEAL ]] --
+-- [[ COMPACT MOBILE GUI, ANTI-TRIP PHYSICS, UNIVERSAL AUTO-STEAL ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -273,8 +273,8 @@ returnBtn.Size = UDim2.new(1, 0, 1, 0); returnBtn.BackgroundTransparency = 1
 returnBtn.Text = "S4HUB"; returnBtn.TextColor3 = Color3.new(1, 1, 1); returnBtn.Font = Enum.Font.GothamBold; returnBtn.TextSize = 14
 returnFrame.Visible = false
 
--- [4] S4HUB MAIN SETTINGS MENU (COMPACT FOR MOBILE: 320x320)
-local hubMenu, hubMenuStroke = createStyledFrame("S4HUB_Menu", UDim2.new(0, 320, 0, 320), UDim2.new(0.5, -160, 0.5, -160), SHINY_PURPLE)
+-- [4] S4HUB MAIN SETTINGS MENU
+local hubMenu, hubMenuStroke = createStyledFrame("S4HUB_Menu", UDim2.new(0, 340, 0, 400), UDim2.new(0.5, -170, 0.5, -200), SHINY_PURPLE)
 hubMenu.Visible = false
 
 local hubTitle = Instance.new("TextLabel", hubMenu)
@@ -303,7 +303,7 @@ serverTab.BackgroundTransparency = 1; serverTab.Text = "SERVER"; serverTab.Font 
 
 local s4duelsScroll = Instance.new("ScrollingFrame", hubMenu)
 s4duelsScroll.Size = UDim2.new(1, -20, 1, -125); s4duelsScroll.Position = UDim2.new(0, 10, 0, 80)
-s4duelsScroll.BackgroundTransparency = 1; s4duelsScroll.CanvasSize = UDim2.new(0, 0, 1.6, 0); s4duelsScroll.ScrollBarThickness = 3; s4duelsScroll.ScrollBarImageColor3 = SHINY_PURPLE
+s4duelsScroll.BackgroundTransparency = 1; s4duelsScroll.CanvasSize = UDim2.new(0, 0, 1.4, 0); s4duelsScroll.ScrollBarThickness = 3; s4duelsScroll.ScrollBarImageColor3 = SHINY_PURPLE
 local s4Layout = Instance.new("UIGridLayout", s4duelsScroll)
 s4Layout.CellSize = UDim2.new(0.48, 0, 0, 35); s4Layout.CellPadding = UDim2.new(0, 8, 0, 8)
 Instance.new("UIPadding", s4duelsScroll).PaddingLeft = UDim.new(0, 2)
@@ -404,7 +404,7 @@ confirmBoosterBtn.Text = "SAVE SPEED"; confirmBoosterBtn.BackgroundColor3 = Colo
 Instance.new("UICorner", confirmBoosterBtn).CornerRadius = UDim.new(0, 6)
 local cbbStroke = Instance.new("UIStroke", confirmBoosterBtn); cbbStroke.Thickness = 1.5; cbbStroke.Color = NEON_BLUE
 
--- [7] duelfucker HUD (Container for draggable buttons)
+-- [7] duelfucker HUD
 local duelFuckerHUD = Instance.new("Frame", screenGui)
 duelFuckerHUD.Size = UDim2.new(1, 0, 1, 0); duelFuckerHUD.BackgroundTransparency = 1; duelFuckerHUD.Visible = false
 
@@ -495,7 +495,7 @@ end
 -- ========== FEATURE LOGIC & PHYSICS =======
 -- ==========================================
 
--- === AGGRESSIVE AUTO-STEAL AURA ENGINE ===
+-- === UNIVERSAL AUTO-STEAL AURA ENGINE ===
 local cachedPrompts = {}
 
 for _, obj in pairs(workspace:GetDescendants()) do
@@ -520,29 +520,40 @@ task.spawn(function()
                     if not prompt or not prompt.Parent then
                         table.remove(cachedPrompts, i)
                     elseif prompt.Enabled then
-                        local part = prompt.Parent
-                        if part:IsA("BasePart") then
-                            -- Aggressively force duration to zero
-                            prompt.HoldDuration = 0 
+                        
+                        -- Forcefully remove invisible hitboxes blocking the interaction
+                        prompt.RequiresLineOfSight = false
+                        prompt.HoldDuration = 0 
+                        
+                        -- Accurately get position regardless of what the prompt is parented to
+                        local promptPos = nil
+                        local pParent = prompt.Parent
+                        if pParent:IsA("BasePart") then
+                            promptPos = pParent.Position
+                        elseif pParent:IsA("Attachment") then
+                            promptPos = pParent.WorldPosition
+                        elseif pParent:IsA("Model") and pParent.PrimaryPart then
+                            promptPos = pParent.PrimaryPart.Position
+                        elseif pParent:IsA("Model") then
+                            promptPos = pParent:GetPivot().Position
+                        end
+                        
+                        if promptPos then
+                            local distance = (promptPos - hrp.Position).Magnitude
                             
-                            local distance = (part.Position - hrp.Position).Magnitude
                             if distance <= prompt.MaxActivationDistance + 5 then
-                                -- Method 1: Executor Override
                                 pcall(function()
                                     if type(fireproximityprompt) == "function" then
                                         fireproximityprompt(prompt, 1)
                                         fireproximityprompt(prompt, 0)
                                     end
-                                end)
-                                
-                                -- Method 2: Native Physical Input Simulation (Foolproof Fallback)
-                                pcall(function()
                                     prompt:InputHoldBegin()
                                     task.wait() 
                                     prompt:InputHoldEnd()
                                 end)
                             end
                         end
+                        
                     end
                 end
             end
@@ -770,7 +781,6 @@ RunService.Heartbeat:Connect(function(deltaTime)
         local hum = Player.Character:FindFirstChild("Humanoid")
         
         if hrp and hum then
-            -- Force character into a stable Freefall so the physics engine doesn't trip on the floor
             hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
             hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
             
@@ -815,7 +825,6 @@ RunService.Heartbeat:Connect(function(deltaTime)
                     lv.Parent = hrp
                 end
 
-                -- RIGID SPINE ALIGNMENT: Prevents character tilting, snapping neck, or dragging on the floor
                 local ao = hrp:FindFirstChild("StealthAO")
                 if not ao then
                     ao = Instance.new("AlignOrientation")
