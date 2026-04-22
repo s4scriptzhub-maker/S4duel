@@ -90,10 +90,6 @@ local thStroke = Instance.new("UIStroke", toggleHub); thStroke.Thickness = 1.2; 
 local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 350), UDim2.new(0.5, -200, 0.5, -150), SHINY_PURPLE)
 hubFrame.Visible = false
 
-local hubTitle = Instance.new("TextLabel", hubFrame)
-hubTitle.Size = UDim2.new(1, 0, 0, 60); hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = "ArialBold"; hubTitle.TextSize = 28; hubTitle.BackgroundTransparency = 1
-local hTStroke = Instance.new("UIStroke", hubTitle); hTStroke.Thickness = 2; applyShinyEffect(hTStroke, SHINY_PURPLE, Color3.new(1,1,1))
-
 local scroll = Instance.new("ScrollingFrame", hubFrame)
 scroll.Size = UDim2.new(1, -20, 1, -120); scroll.Position = UDim2.new(0, 10, 0, 75); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
 Instance.new("UIGridLayout", scroll).CellSize = UDim2.new(0.48, 0, 0, 40)
@@ -104,7 +100,7 @@ Instance.new("UICorner", saveBtn)
 local sbs = Instance.new("UIStroke", saveBtn); sbs.Thickness = 1.5; applyShinyEffect(sbs, NEON_BLUE, Color3.new(1,1,1))
 saveBtn.MouseButton1Click:Connect(saveConfig)
 
--- === HUB BUTTON BUILDER WITH TOGGLE LOGIC ===
+-- === HUB BUTTON BUILDER ===
 local function createHubButton(text, isToggle, func)
     local b = Instance.new("TextButton", scroll)
     b.Text = text; b.BackgroundColor3 = BG_COLOR; b.BackgroundTransparency = 0.6; b.TextColor3 = Color3.new(1,1,1); b.Font = "GothamBold"; b.TextSize = 12
@@ -117,37 +113,37 @@ local function createHubButton(text, isToggle, func)
     b.MouseButton1Click:Connect(function()
         if isToggle then
             ActiveToggles[text] = not ActiveToggles[text]
-            SavedSettings.Toggles[text] = ActiveToggles[text]
-            
-            if ActiveToggles[text] then
-                currentEffect.Enabled = false 
-                bs.Color = ACTIVE_GREEN -- Signal Active
-            else
-                currentEffect.Enabled = true 
-                bs.Color = Color3.new(1,1,1)
-            end
+            currentEffect.Enabled = not ActiveToggles[text]
+            bs.Color = ActiveToggles[text] and ACTIVE_GREEN or Color3.new(1,1,1)
             func(ActiveToggles[text])
         else
-            -- One-time action flash logic
-            task.spawn(function()
-                local oldColor = bs.Color
-                bs.Color = Color3.new(1,1,1)
-                task.wait(0.2)
-                bs.Color = oldColor
-            end)
             func()
         end
     end)
     return b
 end
 
--- --- BUTTON ACTIONS ---
+-- --- ACTIONS ---
 
 createHubButton("Rejoin Server", false, function() TeleportService:Teleport(game.PlaceId, Player) end)
 createHubButton("Server Hop", false, function() 
     local success, result = pcall(function() return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")) end)
     if success and result.data then
         for _, s in pairs(result.data) do if s.playing < s.maxPlayers and s.id ~= game.JobId then TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, Player) return end end
+    end
+end)
+
+-- Inf Jump Logic
+local infJumpConnection
+createHubButton("Inf Jump", true, function(state)
+    if state then
+        infJumpConnection = UserInputService.JumpRequest:Connect(function()
+            if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+                Player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+    else
+        if infJumpConnection then infJumpConnection:Disconnect() end
     end
 end)
 
@@ -164,25 +160,28 @@ createHubButton("Taunt", true, function(state)
     end
 end)
 
--- UPDATED UNWALK: Now properly restores animations
+-- FIXED UNWALK
 createHubButton("Unwalk", true, function(state)
-    local char = Player.Character or Player.CharacterAdded:Wait()
-    local hum = char:WaitForChild("Humanoid")
+    local char = Player.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
     local anim = char:FindFirstChild("Animate")
 
     if state then
-        -- Disable animations
         if anim then anim.Disabled = true end
-        for _, track in pairs(hum:GetPlayingAnimationTracks()) do track:Stop() end
+        for _, t in pairs(hum:GetPlayingAnimationTracks()) do t:Stop() end
     else
-        -- Re-enable animations
-        if anim then anim.Disabled = false end
-        -- Force re-sync by jumping or state change
-        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        if anim then 
+            anim.Disabled = false 
+            -- Force Roblox to "wake up" the animate script
+            local copy = anim:Clone()
+            anim:Destroy()
+            copy.Parent = char
+        end
     end
 end)
 
-for i = 1, 1 do createHubButton("s4loading", false, function() end) end
+createHubButton("s4loading", false, function() end)
 
 -- === FINALIZATION ===
 loadConfig()
