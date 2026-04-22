@@ -132,17 +132,17 @@ createHubButton("Server Hop", false, function()
     end
 end)
 
--- SMOOTH INF JUMP (Fixes Resets)
-local infJumpToggle = false
+-- SMOOTH CONTINUOUS INF JUMP (HOLD SPACE TO FLOAT)
+local infJumpActive = false
 createHubButton("Inf Jump", true, function(state)
-    infJumpToggle = state
+    infJumpActive = state
 end)
 
-UserInputService.JumpRequest:Connect(function()
-    if infJumpToggle and Player.Character then
-        local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z) -- Clean upward velocity
+RunService.RenderStepped:Connect(function()
+    if infJumpActive and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+        if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = Player.Character.HumanoidRootPart
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 45, hrp.Velocity.Z)
         end
     end
 end)
@@ -160,7 +160,6 @@ createHubButton("Taunt", true, function(state)
     end
 end)
 
--- UNWALK FIX
 createHubButton("Unwalk", true, function(state)
     local char = Player.Character
     if not char then return end
@@ -173,7 +172,6 @@ createHubButton("Unwalk", true, function(state)
     else
         if anim then 
             anim.Disabled = false 
-            -- Hard refresh for Brainrot rigs
             local c = anim:Clone()
             anim:Destroy()
             c.Parent = char
