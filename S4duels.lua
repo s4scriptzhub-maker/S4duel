@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ PREMIUM TRANSLUCENT GUI, FLAWLESS FLIGHT, SMART CARRY DETECTION ]] --
+-- [[ FLAWLESS EXECUTION, PREMIUM GUI, CUSTOM INVENTORY CARRY DETECTION ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -330,12 +330,12 @@ switchTab("S4DUELS")
 
 local globalSaveBtn = Instance.new("TextButton", hubMenu)
 globalSaveBtn.Size = UDim2.new(0.9, 0, 0, 35); globalSaveBtn.Position = UDim2.new(0.05, 0, 1, -45)
-globalSaveBtn.Text = "SAVE SETTINGS (S4HUB)"; globalSaveBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 20); globalSaveBtn.TextColor3 = Color3.new(1, 1, 1); globalSaveBtn.Font = Enum.Font.GothamBold; globalSaveBtn.TextSize = 12
+globalSaveBtn.Text = "SAVE SETTINGS (S4HUB)"; globalSaveBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 20); globalSaveBtn.BackgroundTransparency = 0.5; globalSaveBtn.TextColor3 = Color3.new(1, 1, 1); globalSaveBtn.Font = Enum.Font.GothamBold; globalSaveBtn.TextSize = 12
 Instance.new("UICorner", globalSaveBtn).CornerRadius = UDim.new(0, 8)
 local gsbStroke = Instance.new("UIStroke", globalSaveBtn); gsbStroke.Thickness = 2; applyShinyGradient(gsbStroke, NEON_BLUE, Color3.new(1,1,1))
 
 -- [5] BAT FUCKER SPEED SLIDER MENU
-local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 220, 0, 130), UDim2.new(0.5, 180, 0.5, -65), NEON_BLUE)
+local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 220, 0, 130), UDim2.new(0.5, 190, 0.5, -65), NEON_BLUE)
 speedMenu.Visible = false; speedMenu.ZIndex = 50
 
 local speedTitleLabel = Instance.new("TextLabel", speedMenu)
@@ -360,7 +360,7 @@ Instance.new("UICorner", confirmSpeedBtn).CornerRadius = UDim.new(0, 6)
 local csbStroke = Instance.new("UIStroke", confirmSpeedBtn); csbStroke.Thickness = 1.2; csbStroke.Color = NEON_BLUE
 
 -- [6] S4BOOSTER SPEED SETTINGS MENU
-local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 240, 0, 190), UDim2.new(0.5, 180, 0.5, 0), NEON_BLUE)
+local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 240, 0, 190), UDim2.new(0.5, 190, 0.5, 0), NEON_BLUE)
 boosterMenu.Visible = false; boosterMenu.ZIndex = 50
 
 local boosterTitle = Instance.new("TextLabel", boosterMenu)
@@ -593,8 +593,63 @@ end
 
 local function handleBoosterToggle(state)
     if not state and Player.Character and Player.Character:FindFirstChild("Humanoid") then
-        -- Optional reset logic if needed
+        -- Optional reset
     end
+end
+
+-- === SMART CUSTOM CARRY DETECTION (CUSTOM UI INVENTORY CHECK) ===
+local function isCarryingBrainrot()
+    local playerGui = Player:FindFirstChild("PlayerGui")
+    if playerGui then
+        -- Words commonly used by devs for Custom Inventory UIs
+        local invKeywords = {"inventory", "inv", "backpack", "hotbar", "items", "tools", "bag", "hud", "main", "slots"}
+        
+        for _, gui in pairs(playerGui:GetChildren()) do
+            if gui:IsA("ScreenGui") then
+                local name = string.lower(gui.Name)
+                local matchesKeyword = false
+                
+                for _, keyword in pairs(invKeywords) do
+                    if string.find(name, keyword) then
+                        matchesKeyword = true
+                        break
+                    end
+                end
+                
+                if matchesKeyword then
+                    -- Condition 1: The entire ScreenGui is disabled
+                    if not gui.Enabled then
+                        return true
+                    end
+                    
+                    -- Condition 2: The frames inside the ScreenGui are toggled invisible
+                    local frameCount = 0
+                    local hiddenCount = 0
+                    for _, child in pairs(gui:GetChildren()) do
+                        if child:IsA("Frame") or child:IsA("ScrollingFrame") then
+                            frameCount = frameCount + 1
+                            if not child.Visible then
+                                hiddenCount = hiddenCount + 1
+                            end
+                        end
+                    end
+                    
+                    -- If it relies on frames and all main frames are hidden
+                    if frameCount > 0 and hiddenCount == frameCount then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+
+    -- Fallback: Default Roblox CoreGui Backpack check
+    local success, isEnabled = pcall(function()
+        return StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.Backpack)
+    end)
+    if success and isEnabled == false then return true end
+    
+    return false
 end
 
 -- === MOBILE & PC SAFE INFINITE JUMP ===
@@ -697,7 +752,6 @@ RunService.Heartbeat:Connect(function(deltaTime)
         local hum = Player.Character:FindFirstChild("Humanoid")
         
         if hrp and hum then
-            -- Put Humanoid into Physics mode (stops it from trying to stand up, avoiding neck breaks/tripping)
             if hum:GetState() ~= Enum.HumanoidStateType.Physics then
                 hum:ChangeState(Enum.HumanoidStateType.Physics)
             end
@@ -723,10 +777,8 @@ RunService.Heartbeat:Connect(function(deltaTime)
                 local direction = (predictedPos - hrp.Position).Unit
                 local distance = (predictedPos - hrp.Position).Magnitude
                 
-                -- Keep Character Upright (No falling over/tilting into the ground)
                 hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z))
 
-                -- Stealth Flight Engine (Bypasses BodyVelocity Scans)
                 local att = hrp:FindFirstChild("StealthAtt")
                 if not att then
                     att = Instance.new("Attachment")
@@ -753,20 +805,17 @@ RunService.Heartbeat:Connect(function(deltaTime)
             end
         end
     else
-        -- Clean up flight components safely
         if Player.Character then
             safeFlightCleanup(Player.Character)
         end
 
-        -- S4BOOSTER (SMART BASE WALKSPEED PENALTY DETECTOR)
+        -- S4BOOSTER
         if States["S4BOOSTER"] and Player.Character then
             local hum = Player.Character:FindFirstChild("Humanoid")
             local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
             
             if hum and hrp and hum.MoveDirection.Magnitude > 0 then
-                -- Smart Detection: "Steal a Brainrot" naturally forces your Humanoid WalkSpeed down when carrying.
-                -- If it drops below normal walking speed (16), we instantly know you picked up a brainrot.
-                local isCarrying = (hum.WalkSpeed < 15.5 and hum.WalkSpeed > 0)
+                local isCarrying = isCarryingBrainrot()
                 local targetSpeed = isCarrying and AdvancedSettings.CarrySpeed or AdvancedSettings.WalkSpeed
                 
                 local velocityDir = hum.MoveDirection * targetSpeed
@@ -776,7 +825,6 @@ RunService.Heartbeat:Connect(function(deltaTime)
     end
 end)
 
--- Cleanup flight forces on death
 Player.CharacterAdded:Connect(function(char)
     char.Humanoid.Died:Connect(function()
         States["Bat Fucker"] = false
