@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ FLAWLESS EXECUTION, PREMIUM GUI, ZERO-FOOTPRINT ANTI-CHEAT BYPASS ]] --
+-- [[ PREMIUM TRANSLUCENT GUI, FLAWLESS FLIGHT, INSTANT STEAL ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -40,11 +40,12 @@ local SpeedConfigFile = "S4_ELITE_SPEED.json"
 local AdvancedSettings = { 
     BatSpeed = 56, 
     WalkSpeed = 56, 
-    CarrySpeed = 29 
+    CarrySpeed = 30 -- Max safely set to 32 via sliders
 }
 local States = {
     ["Bat Fucker"] = false,
     ["S4BOOSTER"] = false,
+    ["Instant Steal"] = false,
     ["ESP"] = false,
     ["Inf Jump"] = false,
     ["Unwalk"] = false,
@@ -335,7 +336,7 @@ Instance.new("UICorner", globalSaveBtn).CornerRadius = UDim.new(0, 8)
 local gsbStroke = Instance.new("UIStroke", globalSaveBtn); gsbStroke.Thickness = 2; applyShinyGradient(gsbStroke, NEON_BLUE, Color3.new(1,1,1))
 
 -- [5] BAT FUCKER SPEED SLIDER MENU
-local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 220, 0, 130), UDim2.new(0.5, 180, 0.5, -65), NEON_BLUE)
+local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 220, 0, 130), UDim2.new(0.5, 190, 0.5, -65), NEON_BLUE)
 speedMenu.Visible = false; speedMenu.ZIndex = 50
 
 local speedTitleLabel = Instance.new("TextLabel", speedMenu)
@@ -360,7 +361,7 @@ Instance.new("UICorner", confirmSpeedBtn).CornerRadius = UDim.new(0, 6)
 local csbStroke = Instance.new("UIStroke", confirmSpeedBtn); csbStroke.Thickness = 1.2; csbStroke.Color = NEON_BLUE
 
 -- [6] S4BOOSTER SPEED SETTINGS MENU
-local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 240, 0, 190), UDim2.new(0.5, 180, 0.5, 0), NEON_BLUE)
+local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 240, 0, 190), UDim2.new(0.5, 190, 0.5, 0), NEON_BLUE)
 boosterMenu.Visible = false; boosterMenu.ZIndex = 50
 
 local boosterTitle = Instance.new("TextLabel", boosterMenu)
@@ -384,14 +385,14 @@ wTrigger.Size = UDim2.new(1, 0, 1, 0); wTrigger.BackgroundTransparency = 1; wTri
 
 local cSpeedLabel = Instance.new("TextLabel", boosterMenu)
 cSpeedLabel.Size = UDim2.new(1, 0, 0, 20); cSpeedLabel.Position = UDim2.new(0, 0, 0, 85)
-cSpeedLabel.Text = "Carry Speed (0-39): " .. AdvancedSettings.CarrySpeed; cSpeedLabel.TextColor3 = Color3.new(0.9, 0.9, 0.9); cSpeedLabel.Font = Enum.Font.GothamSemibold; cSpeedLabel.TextSize = 11; cSpeedLabel.BackgroundTransparency = 1; cSpeedLabel.ZIndex = 51
+cSpeedLabel.Text = "Carry Speed (0-32): " .. AdvancedSettings.CarrySpeed; cSpeedLabel.TextColor3 = Color3.new(0.9, 0.9, 0.9); cSpeedLabel.Font = Enum.Font.GothamSemibold; cSpeedLabel.TextSize = 11; cSpeedLabel.BackgroundTransparency = 1; cSpeedLabel.ZIndex = 51
 
 local cTrack = Instance.new("Frame", boosterMenu)
 cTrack.Size = UDim2.new(0.8, 0, 0, 10); cTrack.Position = UDim2.new(0.1, 0, 0.55, 0)
 cTrack.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15); cTrack.BackgroundTransparency = 0.5; cTrack.ZIndex = 51; Instance.new("UICorner", cTrack)
 
 local cFill = Instance.new("Frame", cTrack)
-cFill.Size = UDim2.new(AdvancedSettings.CarrySpeed / 39, 0, 1, 0)
+cFill.Size = UDim2.new(AdvancedSettings.CarrySpeed / 32, 0, 1, 0)
 cFill.BackgroundColor3 = NEON_BLUE; cFill.ZIndex = 52; Instance.new("UICorner", cFill)
 
 local cTrigger = Instance.new("TextButton", cTrack)
@@ -493,6 +494,25 @@ end
 -- ==========================================
 -- ========== FEATURE LOGIC & PHYSICS =======
 -- ==========================================
+
+-- === INSTANT STEAL (PROXIMITY BYPASS) ===
+local function applyInstantSteal(state)
+    if state then
+        -- Modify all existing prompts instantly
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                obj.HoldDuration = 0
+            end
+        end
+    end
+end
+
+-- Hook into Workspace to instantly strip the timer off any newly dropped items
+workspace.DescendantAdded:Connect(function(descendant)
+    if States["Instant Steal"] and descendant:IsA("ProximityPrompt") then
+        descendant.HoldDuration = 0
+    end
+end)
 
 local function applyFPSBoost()
     local Lighting = game:GetService("Lighting")
@@ -632,6 +652,7 @@ end
 createSyncedButton("duelfucker", true, s4duelsScroll, nil, activateDuelFuckerMode)
 createSyncedButton("Bat Fucker", true, s4duelsScroll, nil, nil)
 createSyncedButton("S4BOOSTER", true, s4duelsScroll, nil, handleBoosterToggle)
+createSyncedButton("Instant Steal", true, s4duelsScroll, nil, applyInstantSteal)
 createSyncedButton("Inf Jump", true, s4duelsScroll, nil, nil)
 createSyncedButton("Unwalk", true, s4duelsScroll, nil, applyUnwalk)
 createSyncedButton("FPS Booster", false, s4duelsScroll, nil, applyFPSBoost)
@@ -654,6 +675,7 @@ createSyncedButton("Kick Self", false, serverScroll, nil, function() Player:Kick
 -- [POPULATE duelfucker HUD]
 createSyncedButton("Bat Fucker", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.3, 0), nil)
 createSyncedButton("S4BOOSTER", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.4, 0), handleBoosterToggle)
+createSyncedButton("Instant Steal", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.5, 0), applyInstantSteal)
 createSyncedButton("ESP", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.5, 0), nil)
 createSyncedButton("Inf Jump", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.3, 0), nil)
 createSyncedButton("Unwalk", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.4, 0), applyUnwalk)
@@ -680,7 +702,7 @@ makeInteractive(speedMenu, speedTitleLabel, true, nil)
 makeInteractive(confirmSpeedBtn, confirmSpeedBtn, false, function() saveConfigs(); speedMenu.Visible = false end)
 
 makeSliderInteractive(wTrigger, wTrack, wFill, wSpeedLabel, "WalkSpeed", 70, "Walk Speed (0-70): ")
-makeSliderInteractive(cTrigger, cTrack, cFill, cSpeedLabel, "CarrySpeed", 39, "Carry Speed (0-39): ")
+makeSliderInteractive(cTrigger, cTrack, cFill, cSpeedLabel, "CarrySpeed", 32, "Carry Speed (0-32): ")
 makeInteractive(boosterMenu, boosterTitle, true, nil)
 makeInteractive(confirmBoosterBtn, confirmBoosterBtn, false, function() saveConfigs(); boosterMenu.Visible = false end)
 
