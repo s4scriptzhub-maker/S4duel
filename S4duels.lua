@@ -10,11 +10,7 @@ local ConfigFile = "S4DUELS_Brainrot_Config.json"
 
 -- === SETTINGS STORAGE ===
 local SavedSettings = { Toggles = {} }
-local ActiveToggles = {
-    ["Inf Jump"] = false,
-    ["Unwalk"] = false,
-    ["Taunt"] = false
-} 
+local ActiveToggles = {} 
 
 -- === PREMIUM COLORS ===
 local SHINY_PURPLE = Color3.fromRGB(210, 80, 255)
@@ -94,10 +90,6 @@ local thStroke = Instance.new("UIStroke", toggleHub); thStroke.Thickness = 1.2; 
 local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 350), UDim2.new(0.5, -200, 0.5, -150), SHINY_PURPLE)
 hubFrame.Visible = false
 
-local hubTitle = Instance.new("TextLabel", hubFrame)
-hubTitle.Size = UDim2.new(1, 0, 0, 60); hubTitle.Text = "S4HUB - BRAINROT"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = "ArialBold"; hubTitle.TextSize = 24; hubTitle.BackgroundTransparency = 1
-local hTStroke = Instance.new("UIStroke", hubTitle); hTStroke.Thickness = 2; applyShinyEffect(hTStroke, SHINY_PURPLE, Color3.new(1,1,1))
-
 local scroll = Instance.new("ScrollingFrame", hubFrame)
 scroll.Size = UDim2.new(1, -20, 1, -120); scroll.Position = UDim2.new(0, 10, 0, 75); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
 Instance.new("UIGridLayout", scroll).CellSize = UDim2.new(0.48, 0, 0, 40)
@@ -116,10 +108,10 @@ local function createHubButton(text, isToggle, func)
     local bs = Instance.new("UIStroke", b); bs.Thickness = 1.2
     local currentEffect = applyShinyEffect(bs, SHINY_PURPLE, Color3.new(1,1,1))
     
+    ActiveToggles[text] = false
     b.MouseButton1Click:Connect(function()
         if isToggle then
             ActiveToggles[text] = not ActiveToggles[text]
-            SavedSettings.Toggles[text] = ActiveToggles[text]
             currentEffect.Enabled = not ActiveToggles[text]
             bs.Color = ActiveToggles[text] and ACTIVE_GREEN or Color3.new(1,1,1)
             func(ActiveToggles[text])
@@ -130,7 +122,7 @@ local function createHubButton(text, isToggle, func)
     return b
 end
 
--- --- STEAL A BRAINROT FEATURES ---
+-- --- FEATURES ---
 
 createHubButton("Rejoin Server", false, function() TeleportService:Teleport(game.PlaceId, Player) end)
 createHubButton("Server Hop", false, function() 
@@ -140,17 +132,18 @@ createHubButton("Server Hop", false, function()
     end
 end)
 
--- Inf Jump for Brainrot Platforming
-local infJumpCon
+-- SMOOTH INF JUMP (Fixes Resets)
+local infJumpToggle = false
 createHubButton("Inf Jump", true, function(state)
-    if state then
-        infJumpCon = UserInputService.JumpRequest:Connect(function()
-            if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-                Player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end)
-    else
-        if infJumpCon then infJumpCon:Disconnect() end
+    infJumpToggle = state
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if infJumpToggle and Player.Character then
+        local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z) -- Clean upward velocity
+        end
     end
 end)
 
@@ -167,28 +160,28 @@ createHubButton("Taunt", true, function(state)
     end
 end)
 
--- Fixed Unwalk (Force Reset Animate Script)
+-- UNWALK FIX
 createHubButton("Unwalk", true, function(state)
-    local function applyUnwalk(char)
-        local hum = char:WaitForChild("Humanoid")
-        local anim = char:FindFirstChild("Animate")
-        if state then
-            if anim then anim.Disabled = true end
-            for _, t in pairs(hum:GetPlayingAnimationTracks()) do t:Stop() end
-        else
-            if anim then 
-                anim.Disabled = false 
-                local clone = anim:Clone()
-                anim:Destroy()
-                clone.Parent = char
-            end
+    local char = Player.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    local anim = char:FindFirstChild("Animate")
+
+    if state then
+        if anim then anim.Disabled = true end
+        for _, t in pairs(hum:GetPlayingAnimationTracks()) do t:Stop() end
+    else
+        if anim then 
+            anim.Disabled = false 
+            -- Hard refresh for Brainrot rigs
+            local c = anim:Clone()
+            anim:Destroy()
+            c.Parent = char
         end
     end
-    
-    if Player.Character then applyUnwalk(Player.Character) end
 end)
 
-createHubButton("s4loading", false, function() end)
+createHubButton("Kick Self", false, function() Player:Kick("S4DUELS: Brainrot Disconnect") end)
 
 -- === CORE LOGIC ===
 loadConfig()
