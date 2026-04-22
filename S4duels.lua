@@ -19,10 +19,12 @@ local SHINY_PURPLE = Color3.fromRGB(210, 80, 255)
 local NEON_BLUE = Color3.fromRGB(0, 220, 255)
 local ACTIVE_GREEN = Color3.fromRGB(0, 255, 150)
 local BG_COLOR = Color3.fromRGB(10, 10, 15)
+local ESP_COLOR = Color3.fromRGB(255, 0, 0) -- Red for ESP
 
 local guiLocked = false
 local infJumpActive = false
 local batActive = false
+local espActive = false
 
 -- === UTILITY FUNCTIONS ===
 local function saveConfig()
@@ -99,7 +101,7 @@ Instance.new("UICorner", toggleHub).CornerRadius = UDim.new(0, 4)
 local thStroke = Instance.new("UIStroke", toggleHub); thStroke.Thickness = 1.2; applyShinyEffect(thStroke, SHINY_PURPLE, Color3.new(1,1,1))
 
 -- 3. HUB MENU
-local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 350), UDim2.new(0.5, -200, 0.5, -150), SHINY_PURPLE)
+local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 380), UDim2.new(0.5, -200, 0.5, -150), SHINY_PURPLE)
 hubFrame.Visible = false
 
 local hubTitle = Instance.new("TextLabel", hubFrame)
@@ -180,7 +182,6 @@ local function createHubButton(text, isToggle, func)
             bs.Color = ActiveToggles[text] and ACTIVE_GREEN or Color3.new(1,1,1)
             func(ActiveToggles[text])
         else
-            -- Flash white for one-time clicks
             task.spawn(function()
                 local oldColor = bs.Color
                 bs.Color = Color3.new(1,1,1)
@@ -196,6 +197,8 @@ end
 -- === ADDING ALL FEATURES TO THE MENU ===
 
 createHubButton("Bat Fucker", true, function(state) batActive = state end)
+
+createHubButton("ESP", true, function(state) espActive = state end)
 
 createHubButton("Inf Jump", true, function(state) infJumpActive = state end)
 
@@ -244,7 +247,62 @@ end)
 
 createHubButton("Kick Self", false, function() Player:Kick("S4DUELS: Brainrot Disconnect") end)
 
--- === RENDER LOOP FOR INF JUMP & BAT FUCKER ===
+-- === ESP LOGIC ===
+local function applyESP(v)
+    if v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+        local char = v.Character
+        -- Body Highlight
+        if not char:FindFirstChild("S4_Highlight") then
+            local hl = Instance.new("Highlight")
+            hl.Name = "S4_Highlight"
+            hl.FillColor = ESP_COLOR
+            hl.OutlineColor = ESP_COLOR
+            hl.FillTransparency = 0.5
+            hl.Parent = char
+        end
+        -- Name Tag
+        if not char:FindFirstChild("S4_NameTag") then
+            local bg = Instance.new("BillboardGui")
+            bg.Name = "S4_NameTag"
+            bg.Size = UDim2.new(0, 200, 0, 40)
+            bg.StudsOffset = Vector3.new(0, 3, 0)
+            bg.AlwaysOnTop = true
+            local txt = Instance.new("TextLabel")
+            txt.Size = UDim2.new(1, 0, 1, 0)
+            txt.BackgroundTransparency = 1
+            txt.Text = v.Name
+            txt.TextColor3 = ESP_COLOR
+            txt.TextStrokeTransparency = 0
+            txt.Font = Enum.Font.GothamBold
+            txt.TextSize = 14
+            txt.Parent = bg
+            bg.Parent = char
+        end
+    end
+end
+
+local function removeESP(v)
+    if v.Character then
+        if v.Character:FindFirstChild("S4_Highlight") then v.Character.S4_Highlight:Destroy() end
+        if v.Character:FindFirstChild("S4_NameTag") then v.Character.S4_NameTag:Destroy() end
+    end
+end
+
+-- === RENDER LOOP FOR PHYSICS & ESP ===
+local batMover = nil
+local batGyro = nil
+
+RunService.Stepped:Connect(function()
+    -- Noclip for Bat Fucker to prevent tripping over walls/floors while tracking
+    if batActive and Player.Character then
+        for _, part in pairs(Player.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
 RunService.RenderStepped:Connect(function()
     -- Inf Jump Logic
     if infJumpActive and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
@@ -254,8 +312,19 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Bat Fucker Logic
-    if batActive and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+    -- ESP Logic
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= Player then
+            if espActive then
+                applyESP(v)
+            else
+                removeESP(v)
+            end
+        end
+    end
+
+    -- Bat Fucker Logic (Smooth 3D Tracking using BodyMovers)
+    if batActive and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") and Player.Character:FindFirstChild("Humanoid") then
         local myHrp = Player.Character.HumanoidRootPart
         local closestPlayer = nil
         local shortestDist = math.huge
@@ -272,13 +341,45 @@ RunService.RenderStepped:Connect(function()
 
         if closestPlayer then
             local targetPos = closestPlayer.Character.HumanoidRootPart.Position
-            -- Face Target
-            myHrp.CFrame = CFrame.new(myHrp.Position, Vector3.new(targetPos.X, myHrp.Position.Y, targetPos.Z))
-            -- Move to Target
             local direction = (targetPos - myHrp.Position).Unit
-            if shortestDist > 3 then
-                myHrp.Velocity = Vector3.new(direction.X * BatSettings.Speed, myHrp.Velocity.Y, direction.Z * BatSettings.Speed)
+
+            -- Create Movers if they don't exist
+            if not batMover then
+                batMover = Instance.new("BodyVelocity")
+                batMover.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                batMover.Parent = myHrp
             end
+            if not batGyro then
+                batGyro = Instance.new("BodyGyro")
+                batGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+                batGyro.P = 15000
+                batGyro.Parent = myHrp
+            end
+
+            -- Apply 3D Float/Flight Movement
+            if shortestDist > 2.5 then
+                batMover.Velocity = direction * BatSettings.Speed
+            else
+                batMover.Velocity = Vector3.zero
+            end
+
+            -- Always face target
+            batGyro.CFrame = CFrame.lookAt(myHrp.Position, targetPos)
+            
+            -- Prevent natural physics from interfering
+            Player.Character.Humanoid.PlatformStand = true 
+        else
+            -- Cleanup if no target found
+            if batMover then batMover:Destroy(); batMover = nil end
+            if batGyro then batGyro:Destroy(); batGyro = nil end
+            Player.Character.Humanoid.PlatformStand = false
+        end
+    else
+        -- Cleanup if deactivated
+        if batMover then batMover:Destroy(); batMover = nil end
+        if batGyro then batGyro:Destroy(); batGyro = nil end
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.PlatformStand = false
         end
     end
 end)
