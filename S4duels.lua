@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ PREMIUM TRANSLUCENT GUI, FLAWLESS FLIGHT, AUTO-STEAL AURA ]] --
+-- [[ FLAWLESS EXECUTION, ANTI-TRIP PHYSICS, BRUTE-FORCE STEAL AURA ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -404,7 +404,7 @@ confirmBoosterBtn.Text = "SAVE SPEED"; confirmBoosterBtn.BackgroundColor3 = Colo
 Instance.new("UICorner", confirmBoosterBtn).CornerRadius = UDim.new(0, 6)
 local cbbStroke = Instance.new("UIStroke", confirmBoosterBtn); cbbStroke.Thickness = 1.5; cbbStroke.Color = NEON_BLUE
 
--- [7] duelfucker HUD (Container for draggable buttons)
+-- [7] duelfucker HUD
 local duelFuckerHUD = Instance.new("Frame", screenGui)
 duelFuckerHUD.Size = UDim2.new(1, 0, 1, 0); duelFuckerHUD.BackgroundTransparency = 1; duelFuckerHUD.Visible = false
 
@@ -495,53 +495,52 @@ end
 -- ========== FEATURE LOGIC & PHYSICS =======
 -- ==========================================
 
--- === AUTO-STEAL AURA ENGINE ===
+-- === BRUTE-FORCE INSTANT STEAL AURA ===
 local cachedPrompts = {}
 
--- Populate initial prompts
+-- Cache existing prompts
 for _, obj in pairs(workspace:GetDescendants()) do
     if obj:IsA("ProximityPrompt") then
         table.insert(cachedPrompts, obj)
     end
 end
 
--- Listen for dynamically spawning brainrots
+-- Cache new prompts dynamically
 workspace.DescendantAdded:Connect(function(obj)
     if obj:IsA("ProximityPrompt") then
         table.insert(cachedPrompts, obj)
     end
 end)
 
--- The Aura Loop
+-- Fast-Loop Aura Engine
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.05) do
         if States["Instant Steal"] and Player.Character then
             local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
-                -- Iterate backwards to safely remove invalid/deleted prompts
                 for i = #cachedPrompts, 1, -1 do
                     local prompt = cachedPrompts[i]
-                    
                     if not prompt or not prompt.Parent then
                         table.remove(cachedPrompts, i)
                     elseif prompt.Enabled then
                         local part = prompt.Parent
                         if part:IsA("BasePart") then
-                            local distance = (part.Position - hrp.Position).Magnitude
+                            prompt.HoldDuration = 0 -- Permanently strip timer
                             
-                            -- If within grabbing distance (accounting for slight latency buffer)
-                            if distance <= prompt.MaxActivationDistance + 2 then
-                                -- Exploit Native function instantly grabs it without interacting
+                            local distance = (part.Position - hrp.Position).Magnitude
+                            -- 15 stud radius ensures you catch it immediately
+                            if distance <= 15 then
+                                -- Try native exploit function first
                                 if type(fireproximityprompt) == "function" then
-                                    fireproximityprompt(prompt, 0)
-                                else
-                                    -- Fallback method
-                                    local old = prompt.HoldDuration
-                                    prompt.HoldDuration = 0
-                                    prompt:InputHoldBegin()
-                                    prompt:InputHoldEnd()
-                                    prompt.HoldDuration = old
+                                    fireproximityprompt(prompt, 1)
                                 end
+                                
+                                -- Brute-force input simulation fallback
+                                pcall(function()
+                                    prompt:InputHoldBegin()
+                                    task.wait()
+                                    prompt:InputHoldEnd()
+                                end)
                             end
                         end
                     end
@@ -689,7 +688,7 @@ end
 createSyncedButton("duelfucker", true, s4duelsScroll, nil, activateDuelFuckerMode)
 createSyncedButton("Bat Fucker", true, s4duelsScroll, nil, nil)
 createSyncedButton("S4BOOSTER", true, s4duelsScroll, nil, handleBoosterToggle)
-createSyncedButton("Instant Steal", true, s4duelsScroll, nil, nil) -- Automatically handled by the Aura Loop
+createSyncedButton("Instant Steal", true, s4duelsScroll, nil, nil) 
 createSyncedButton("Inf Jump", true, s4duelsScroll, nil, nil)
 createSyncedButton("Unwalk", true, s4duelsScroll, nil, applyUnwalk)
 createSyncedButton("FPS Booster", false, s4duelsScroll, nil, applyFPSBoost)
@@ -749,23 +748,34 @@ makeInteractive(confirmBoosterBtn, confirmBoosterBtn, false, function() saveConf
 local function safeFlightCleanup(char)
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChild("Humanoid")
     if hrp then
         local att = hrp:FindFirstChild("StealthAtt")
         local lv = hrp:FindFirstChild("StealthLV")
+        local ao = hrp:FindFirstChild("StealthAO")
         if att then att:Destroy() end
         if lv then lv:Destroy() end
+        if ao then ao:Destroy() end
+    end
+    if hum then
+        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
     end
 end
 
 RunService.Heartbeat:Connect(function(deltaTime)
-    -- BAT FUCKER (ZERO-FOOTPRINT ANTI-CHEAT BYPASS)
+    -- BAT FUCKER (ANTI-TRIP PHYSICS BYPASS)
     if States["Bat Fucker"] and Player.Character then
         local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
         local hum = Player.Character:FindFirstChild("Humanoid")
         
         if hrp and hum then
-            if hum:GetState() ~= Enum.HumanoidStateType.Physics then
-                hum:ChangeState(Enum.HumanoidStateType.Physics)
+            -- Force character into a stable Freefall so the physics engine doesn't trip on the floor
+            hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+            
+            if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
+                hum:ChangeState(Enum.HumanoidStateType.Freefall)
             end
             
             local targetHrp = nil
@@ -788,8 +798,6 @@ RunService.Heartbeat:Connect(function(deltaTime)
                 local predictedPos = targetPos + (targetHrp.AssemblyLinearVelocity * 0.1)
                 local direction = (predictedPos - hrp.Position).Unit
                 local distance = (predictedPos - hrp.Position).Magnitude
-                
-                hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z))
 
                 local att = hrp:FindFirstChild("StealthAtt")
                 if not att then
@@ -807,6 +815,20 @@ RunService.Heartbeat:Connect(function(deltaTime)
                     lv.Parent = hrp
                 end
 
+                -- RIGID SPINE ALIGNMENT: Prevents character tilting, snapping neck, or dragging on the floor
+                local ao = hrp:FindFirstChild("StealthAO")
+                if not ao then
+                    ao = Instance.new("AlignOrientation")
+                    ao.Name = "StealthAO"
+                    ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+                    ao.Attachment0 = att
+                    ao.RigidityEnabled = true
+                    ao.Parent = hrp
+                end
+                
+                local lookAtPos = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
+                ao.CFrame = CFrame.lookAt(hrp.Position, lookAtPos)
+
                 if distance > 4 then
                     lv.VectorVelocity = direction * AdvancedSettings.BatSpeed
                 else
@@ -821,7 +843,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
             safeFlightCleanup(Player.Character)
         end
 
-        -- S4BOOSTER (LINEAR VELOCITY OVERRIDE)
+        -- S4BOOSTER
         if States["S4BOOSTER"] and Player.Character then
             local hum = Player.Character:FindFirstChild("Humanoid")
             local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
