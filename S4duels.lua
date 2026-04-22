@@ -79,22 +79,34 @@ local function createFrame(name, size, pos, accent)
     return f, s
 end
 
--- TOP LEFT RETURN BUTTON (S4HUB)
+-- 1. TOP LEFT RETURN BUTTON (ALWAYS VISIBLE)
 local returnBtnFrame, returnStroke = createFrame("ReturnBtn", UDim2.new(0, 100, 0, 35), UDim2.new(0, 10, 0, 10), NEON_BLUE)
 local returnBtn = Instance.new("TextButton", returnBtnFrame)
 returnBtn.Size = UDim2.new(1,0,1,0); returnBtn.Text = "S4HUB"; returnBtn.Font = "GothamBold"; returnBtn.TextColor3 = Color3.new(1,1,1); returnBtn.BackgroundTransparency = 1; returnBtn.TextSize = 14
 
--- MAIN UI ELEMENTS
+-- 2. LOCK BUTTON (RESTORED)
+local lockFrame, lockStroke = createFrame("Lock", UDim2.new(0, 95, 0, 30), UDim2.new(0.5, -240, 0, 50), NEON_BLUE)
+local lockBtn = Instance.new("TextButton", lockFrame)
+lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1; lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1,1,1); lockBtn.Font = "GothamBold"; lockBtn.TextSize = 10
+
+-- 3. MAIN HEADER (RESTORED TITLE)
 local mainFrame = createFrame("Main", UDim2.new(0, 180, 0, 85), UDim2.new(0.5, -90, 0, 50), SHINY_PURPLE)
-local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 400), UDim2.new(0.5, -200, 0.5, -200), SHINY_PURPLE)
+local mainTitle = Instance.new("TextLabel", mainFrame)
+mainTitle.Size = UDim2.new(1, 0, 0, 35); mainTitle.Position = UDim2.new(0, 0, 0, 5); mainTitle.Text = "S4DUELS"; mainTitle.TextColor3 = Color3.new(1,1,1); mainTitle.Font = "ArialBold"; mainTitle.TextSize = 22; mainTitle.BackgroundTransparency = 1
+local mtStroke = Instance.new("UIStroke", mainTitle); mtStroke.Thickness = 1.5; applyShinyEffect(mtStroke, SHINY_PURPLE, Color3.new(1,1,1))
+
+local stats = Instance.new("TextLabel", mainFrame)
+stats.Size = UDim2.new(1, 0, 0, 15); stats.Position = UDim2.new(0,0,0,42); stats.TextColor3 = Color3.fromRGB(200,200,200); stats.TextSize = 8.5; stats.BackgroundTransparency = 1; stats.Text = "FPS: -- | PING: --"
+
+-- 4. HUB MENU
+local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 420), UDim2.new(0.5, -200, 0.5, -210), SHINY_PURPLE)
 hubFrame.Visible = false
 
 -- SAINTS HUD CONTAINER
 local saintsHUD = Instance.new("Frame", screenGui)
 saintsHUD.Size = UDim2.new(1, 0, 1, 0); saintsHUD.BackgroundTransparency = 1; saintsHUD.Visible = false
 
--- LIST OF ACTION BUTTONS FOR SAINTS MODE
-local hudButtons = {}
+local hudElements = {} -- Reference for syncing colors
 
 local function createHudAction(text, pos, isToggle, func)
     local f, s = createFrame(text.."_HUD", UDim2.new(0, 130, 0, 40), pos, SHINY_PURPLE)
@@ -102,6 +114,8 @@ local function createHudAction(text, pos, isToggle, func)
     local b = Instance.new("TextButton", f)
     b.Size = UDim2.new(1,0,1,0); b.Text = text; b.Font = "GothamBold"; b.TextColor3 = Color3.new(1,1,1); b.BackgroundTransparency = 1; b.TextSize = 11
     
+    hudElements[text] = {Frame = f, Stroke = s}
+
     b.MouseButton1Click:Connect(function()
         if isToggle then
             ActiveToggles[text] = not ActiveToggles[text]
@@ -112,31 +126,44 @@ local function createHudAction(text, pos, isToggle, func)
     return f
 end
 
--- Positions for HUD Buttons
-local h1 = createHudAction("Bat Fucker", UDim2.new(0.1, 0, 0.4, 0), true, function(s) batActive = s end)
-local h2 = createHudAction("ESP", UDim2.new(0.1, 0, 0.5, 0), true, function(s) espActive = s end)
-local h3 = createHudAction("Inf Jump", UDim2.new(0.8, 0, 0.4, 0), true, function(s) infJumpActive = s end)
-local h4 = createHudAction("Unwalk", UDim2.new(0.8, 0, 0.5, 0), true, function(s) --[[Logic below]] end)
+-- Create Individual HUD Buttons for Saints Mode
+createHudAction("Bat Fucker", UDim2.new(0.1, 0, 0.4, 0), true, function(s) batActive = s end)
+createHudAction("ESP", UDim2.new(0.1, 0, 0.5, 0), true, function(s) espActive = s end)
+createHudAction("Inf Jump", UDim2.new(0.8, 0, 0.4, 0), true, function(s) infJumpActive = s end)
+createHudAction("Unwalk", UDim2.new(0.8, 0, 0.5, 0), true, function(s)
+    local char = Player.Character
+    if s then
+        if char:FindFirstChild("Animate") then char.Animate.Disabled = true end
+        for _, t in pairs(char.Humanoid:GetPlayingAnimationTracks()) do t:Stop() end
+    else
+        if char:FindFirstChild("Animate") then char.Animate.Disabled = false end
+    end
+end)
 
--- TOGGLE LOGIC FOR SAINTSMODE
+-- TOGGLE LOGIC
 local function toggleSaintsMode(state)
     saintsModeActive = state
     saintsHUD.Visible = state
     mainFrame.Visible = not state
+    lockFrame.Visible = not state
     hubFrame.Visible = false
 end
 
 returnBtn.MouseButton1Click:Connect(function()
     toggleSaintsMode(false)
-    mainFrame.Visible = true
 end)
 
--- SETUP HUB INTERNALS
+lockBtn.MouseButton1Click:Connect(function()
+    guiLocked = not guiLocked
+    lockBtn.Text = guiLocked and "LOCKED" or "LOCK GUI"
+    lockStroke.Color = guiLocked and Color3.fromRGB(255, 50, 50) or NEON_BLUE
+end)
+
+-- HUB SCROLLING AREA
 local scroll = Instance.new("ScrollingFrame", hubFrame)
 scroll.Size = UDim2.new(1, -20, 1, -150); scroll.Position = UDim2.new(0, 10, 0, 70); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
 Instance.new("UIGridLayout", scroll).CellSize = UDim2.new(0.48, 0, 0, 40)
 
--- BUTTON BUILDER
 local function createHubButton(text, isToggle, func)
     local b = Instance.new("TextButton", scroll)
     b.Text = text; b.BackgroundColor3 = BG_COLOR; b.TextColor3 = Color3.new(1,1,1); b.Font = "GothamBold"
@@ -147,19 +174,21 @@ local function createHubButton(text, isToggle, func)
         if isToggle then
             ActiveToggles[text] = not ActiveToggles[text]
             bs.Color = ActiveToggles[text] and ACTIVE_GREEN or Color3.new(1,1,1)
+            -- Sync with HUD if exists
+            if hudElements[text] then hudElements[text].Stroke.Color = bs.Color end
             func(ActiveToggles[text])
         else func() end
     end)
 end
 
--- ADD ACTIONS TO HUB
+-- POPULATE HUB
 createHubButton("S4INTSMODE", true, toggleSaintsMode)
 createHubButton("Bat Fucker", true, function(s) batActive = s end)
 createHubButton("ESP", true, function(s) espActive = s end)
 createHubButton("Inf Jump", true, function(s) infJumpActive = s end)
-createHubButton("Unwalk", true, function(state)
+createHubButton("Unwalk", true, function(s)
     local char = Player.Character
-    if state then
+    if s then
         if char:FindFirstChild("Animate") then char.Animate.Disabled = true end
         for _, t in pairs(char.Humanoid:GetPlayingAnimationTracks()) do t:Stop() end
     else
@@ -167,12 +196,16 @@ createHubButton("Unwalk", true, function(state)
     end
 end)
 createHubButton("Rejoin Server", false, function() TeleportService:Teleport(game.PlaceId) end)
-createHubButton("Server Hop", false, function() --[[Hop Logic]] end)
-createHubButton("Kick Self", false, function() Player:Kick() end)
+createHubButton("Server Hop", false, function() TeleportService:Teleport(game.PlaceId) end) -- Simplified for logic
+createHubButton("Kick Self", false, function() Player:Kick("S4DUELS Logout") end)
 
--- BAT FUCKER & PHYSICS LOOP
+-- MAIN PHYSICS & RENDER LOOP
 local batMover, batGyro = nil, nil
 RunService.RenderStepped:Connect(function()
+    -- Update Stats
+    stats.Text = string.format("FPS: %d | PING: %dms", math.floor(1/RunService.RenderStepped:Wait()), math.floor(Player:GetNetworkPing()*1000))
+
+    -- ESP
     if espActive then
         for _, v in pairs(Players:GetPlayers()) do
             if v ~= Player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
@@ -185,6 +218,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
+    -- Bat Fucker Logic
     if batActive and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
         local myHrp = Player.Character.HumanoidRootPart
         local target = nil
@@ -209,21 +243,25 @@ RunService.RenderStepped:Connect(function()
         if Player.Character and Player.Character:FindFirstChild("Humanoid") then Player.Character.Humanoid.PlatformStand = false end
     end
     
+    -- Inf Jump
     if infJumpActive and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
         Player.Character.HumanoidRootPart.Velocity = Vector3.new(Player.Character.HumanoidRootPart.Velocity.X, 45, Player.Character.HumanoidRootPart.Velocity.Z)
     end
 end)
 
--- OPEN HUB BUTTON
-local openBtn = Instance.new("TextButton", mainFrame)
-openBtn.Size = UDim2.new(0, 80, 0, 30); openBtn.Position = UDim2.new(0.5, -40, 1, 10); openBtn.Text = "S4HUB"; openBtn.BackgroundColor3 = BG_COLOR; openBtn.TextColor3 = Color3.new(1,1,1)
-openBtn.MouseButton1Click:Connect(function() hubFrame.Visible = not hubFrame.Visible end)
+-- Main Toggle Button logic
+local toggleBtn = Instance.new("TextButton", mainFrame)
+toggleBtn.Size = UDim2.new(0, 80, 0, 26); toggleBtn.Position = UDim2.new(0.5, -40, 1, 10); toggleBtn.Text = "S4HUB"; toggleBtn.Font = "GothamBold"; toggleBtn.BackgroundColor3 = BG_COLOR; toggleBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", toggleBtn)
+toggleBtn.MouseButton1Click:Connect(function() hubFrame.Visible = not hubFrame.Visible end)
 
--- DRAG LOGIC
+-- Dragging
 local function drag(f)
     local d, st, sp
-    f.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then d = true; st = i.Position; sp = f.Position end end)
+    f.InputBegan:Connect(function(i) if not guiLocked and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then d = true; st = i.Position; sp = f.Position end end)
     UserInputService.InputChanged:Connect(function(i) if d then local del = i.Position - st; f.Position = UDim2.new(sp.X.Scale, sp.X.Offset + del.X, sp.Y.Scale, sp.Y.Offset + del.Y) end end)
     UserInputService.InputEnded:Connect(function() d = false end)
 end
-drag(mainFrame); drag(hubFrame); drag(h1); drag(h2); drag(h3); drag(h4)
+drag(mainFrame); drag(hubFrame); drag(lockFrame); drag(returnBtnFrame)
+-- HUD buttons are also draggable
+for _, el in pairs(hudElements) do drag(el.Frame) end
