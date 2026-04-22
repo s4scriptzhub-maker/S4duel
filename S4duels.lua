@@ -44,13 +44,26 @@ local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.Name = "S4_Shiny_Elite"
 screenGui.ResetOnSpawn = false
 
+-- UPDATED: Sharper gradient and an animated rotation for a true "shiny" effect
 local function applyShinyEffect(instance, color1, color2)
     local grad = Instance.new("UIGradient", instance)
     grad.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, color1),
-        ColorSequenceKeypoint.new(0.5, color2),
+        ColorSequenceKeypoint.new(0.4, color1),
+        ColorSequenceKeypoint.new(0.5, color2), -- The bright shine
+        ColorSequenceKeypoint.new(0.6, color1),
         ColorSequenceKeypoint.new(1, color1)
     })
+    
+    -- Smooth animation loop to rotate the gradient
+    task.spawn(function()
+        local rotation = 0
+        RunService.RenderStepped:Connect(function(deltaTime)
+            rotation = (rotation + (deltaTime * 50)) % 360 -- Adjust the 50 to make it spin faster/slower
+            grad.Rotation = rotation
+        end)
+    end)
+    
     return grad
 end
 
@@ -80,8 +93,22 @@ local tStroke = Instance.new("UIStroke", title); tStroke.Thickness = 1.5; applyS
 local stats = Instance.new("TextLabel", mainFrame)
 stats.Size = UDim2.new(1, 0, 0, 15); stats.Position = UDim2.new(0,0,0,42); stats.TextColor3 = Color3.fromRGB(200,200,200); stats.TextSize = 8.5; stats.BackgroundTransparency = 1
 
+-- UPDATED: S4HUB toggle button now matches the header style
 local toggleHub = Instance.new("TextButton", mainFrame)
-toggleHub.Size = UDim2.new(0, 70, 0, 24); toggleHub.Position = UDim2.new(0.5, -35, 1, 10); toggleHub.Text = "S4HUB"; toggleHub.BackgroundColor3 = Color3.fromRGB(20,20,25); toggleHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", toggleHub)
+toggleHub.Size = UDim2.new(0, 80, 0, 26)
+toggleHub.Position = UDim2.new(0.5, -40, 1, 10)
+toggleHub.Text = "S4HUB"
+toggleHub.Font = "GothamBold"
+toggleHub.BackgroundColor3 = BG_COLOR
+toggleHub.BackgroundTransparency = 0.6
+toggleHub.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", toggleHub).CornerRadius = UDim.new(0, 4)
+
+-- Adding the shiny stroke to the toggle button
+local thStroke = Instance.new("UIStroke", toggleHub)
+thStroke.Thickness = 1.2
+thStroke.Color = Color3.new(1,1,1)
+applyShinyEffect(thStroke, SHINY_PURPLE, Color3.new(1,1,1))
 
 -- 3. HUB MENU (S4HUB)
 local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 300), UDim2.new(0.5, -200, 0.5, -150), SHINY_PURPLE)
@@ -131,7 +158,6 @@ createHubButton("Taunt", function()
     end
 end)
 
--- Reduced the loop from 3 to 2 to perfectly replace one slot with the Taunt button
 for i = 1, 2 do createHubButton("s4loading", function() end) end
 
 -- === INTERACTIONS ===
