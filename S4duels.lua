@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ FLAWLESS EXECUTION, ANTI-CRASH, PERFECT DRAG, SMART BOOSTER ]] --
+-- [[ FLAWLESS EXECUTION, ANTI-CRASH, PERFECT DRAG, MOBILE OPTIMIZED ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -198,73 +198,73 @@ end
 -- ========== UI ELEMENT BUILDER ============
 -- ==========================================
 
--- [1] PERSISTENT LOCK BUTTON
-local lockFrame, lockStroke = createStyledFrame("LockGUI", UDim2.new(0, 100, 0, 35), UDim2.new(0.5, -250, 0, 60), NEON_BLUE)
+-- [1] STATIC LOCK BUTTON (NEVER DRAGGABLE, PINNED TO TOP CENTER)
+local lockFrame, lockStroke = createStyledFrame("LockGUI", UDim2.new(0, 90, 0, 30), UDim2.new(0.5, -45, 0, 10), NEON_BLUE)
 local lockBtn = Instance.new("TextButton", lockFrame)
 lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1
-lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1, 1, 1); lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 12
+lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1, 1, 1); lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 10
 
 -- [2] TOP-LEFT RETURN BUTTON (Visible in duelfucker Mode)
-local returnFrame, returnStroke = createStyledFrame("ReturnHUB", UDim2.new(0, 120, 0, 40), UDim2.new(0, 15, 0, 15), NEON_BLUE)
+local returnFrame, returnStroke = createStyledFrame("ReturnHUB", UDim2.new(0, 100, 0, 35), UDim2.new(0, 10, 0, 10), NEON_BLUE)
 local returnBtn = Instance.new("TextButton", returnFrame)
 returnBtn.Size = UDim2.new(1, 0, 1, 0); returnBtn.BackgroundTransparency = 1
-returnBtn.Text = "S4HUB"; returnBtn.TextColor3 = Color3.new(1, 1, 1); returnBtn.Font = Enum.Font.GothamBold; returnBtn.TextSize = 14
+returnBtn.Text = "S4HUB"; returnBtn.TextColor3 = Color3.new(1, 1, 1); returnBtn.Font = Enum.Font.GothamBold; returnBtn.TextSize = 12
 returnFrame.Visible = false
 
--- [3] MAIN HEADER MENU
-local mainHeader, mainHeaderStroke = createStyledFrame("MainHeader", UDim2.new(0, 180, 0, 95), UDim2.new(0.5, -90, 0, 60), SHINY_PURPLE)
+-- [3] MAIN HEADER MENU (MOBILE OPTIMIZED SIZE)
+local mainHeader, mainHeaderStroke = createStyledFrame("MainHeader", UDim2.new(0, 160, 0, 85), UDim2.new(0.5, -80, 0, 60), SHINY_PURPLE)
 local headerTitle = Instance.new("TextLabel", mainHeader)
-headerTitle.Size = UDim2.new(1, 0, 0, 40); headerTitle.Position = UDim2.new(0, 0, 0, 5)
-headerTitle.Text = "S4DUELS"; headerTitle.TextColor3 = Color3.new(1, 1, 1); headerTitle.Font = Enum.Font.ArialBold; headerTitle.TextSize = 24; headerTitle.BackgroundTransparency = 1
+headerTitle.Size = UDim2.new(1, 0, 0, 35); headerTitle.Position = UDim2.new(0, 0, 0, 5)
+headerTitle.Text = "S4DUELS"; headerTitle.TextColor3 = Color3.new(1, 1, 1); headerTitle.Font = Enum.Font.ArialBold; headerTitle.TextSize = 22; headerTitle.BackgroundTransparency = 1
 applyShinyGradient(Instance.new("UIStroke", headerTitle), SHINY_PURPLE, Color3.new(1, 1, 1))
 
 local statsLabel = Instance.new("TextLabel", mainHeader)
-statsLabel.Size = UDim2.new(1, 0, 0, 20); statsLabel.Position = UDim2.new(0, 0, 0, 40)
+statsLabel.Size = UDim2.new(1, 0, 0, 20); statsLabel.Position = UDim2.new(0, 0, 0, 35)
 statsLabel.Text = "FPS: -- | PING: --ms"; statsLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8); statsLabel.Font = Enum.Font.GothamSemibold; statsLabel.TextSize = 10; statsLabel.BackgroundTransparency = 1
 
 local openSettingsBtn = Instance.new("TextButton", mainHeader)
-openSettingsBtn.Size = UDim2.new(0, 110, 0, 28); openSettingsBtn.Position = UDim2.new(0.5, -55, 1, 10)
-openSettingsBtn.Text = "S4HUB"; openSettingsBtn.BackgroundColor3 = BG_COLOR; openSettingsBtn.TextColor3 = Color3.new(1, 1, 1); openSettingsBtn.Font = Enum.Font.GothamBold; openSettingsBtn.TextSize = 12
+openSettingsBtn.Size = UDim2.new(0, 100, 0, 25); openSettingsBtn.Position = UDim2.new(0.5, -50, 1, 5)
+openSettingsBtn.Text = "S4HUB"; openSettingsBtn.BackgroundColor3 = BG_COLOR; openSettingsBtn.TextColor3 = Color3.new(1, 1, 1); openSettingsBtn.Font = Enum.Font.GothamBold; openSettingsBtn.TextSize = 11
 Instance.new("UICorner", openSettingsBtn).CornerRadius = UDim.new(0, 4)
 local osbStroke = Instance.new("UIStroke", openSettingsBtn); osbStroke.Thickness = 1; osbStroke.Color = SHINY_PURPLE
 
--- [4] S4HUB MAIN SETTINGS MENU
-local hubMenu, hubMenuStroke = createStyledFrame("S4HUB_Menu", UDim2.new(0, 450, 0, 500), UDim2.new(0.5, -225, 0.5, -250), SHINY_PURPLE)
+-- [4] S4HUB MAIN SETTINGS MENU (MOBILE OPTIMIZED SIZE)
+local hubMenu, hubMenuStroke = createStyledFrame("S4HUB_Menu", UDim2.new(0, 340, 0, 420), UDim2.new(0.5, -170, 0.5, -210), SHINY_PURPLE)
 hubMenu.Visible = false
 
 local hubTitle = Instance.new("TextLabel", hubMenu)
-hubTitle.Size = UDim2.new(1, 0, 0, 60); hubTitle.Position = UDim2.new(0, 0, 0, 10)
-hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1, 1, 1); hubTitle.Font = Enum.Font.ArialBold; hubTitle.TextSize = 32; hubTitle.BackgroundTransparency = 1
+hubTitle.Size = UDim2.new(1, 0, 0, 50); hubTitle.Position = UDim2.new(0, 0, 0, 5)
+hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1, 1, 1); hubTitle.Font = Enum.Font.ArialBold; hubTitle.TextSize = 28; hubTitle.BackgroundTransparency = 1
 applyShinyGradient(Instance.new("UIStroke", hubTitle), SHINY_PURPLE, Color3.new(1, 1, 1))
 
 local closeHubBtn = Instance.new("TextButton", hubMenu)
-closeHubBtn.Size = UDim2.new(0, 30, 0, 30); closeHubBtn.Position = UDim2.new(1, -40, 0, 15)
-closeHubBtn.Text = "X"; closeHubBtn.BackgroundColor3 = Color3.fromRGB(40, 10, 10); closeHubBtn.TextColor3 = Color3.new(1, 1, 1); closeHubBtn.Font = Enum.Font.GothamBold; closeHubBtn.TextSize = 14
+closeHubBtn.Size = UDim2.new(0, 25, 0, 25); closeHubBtn.Position = UDim2.new(1, -35, 0, 15)
+closeHubBtn.Text = "X"; closeHubBtn.BackgroundColor3 = Color3.fromRGB(40, 10, 10); closeHubBtn.TextColor3 = Color3.new(1, 1, 1); closeHubBtn.Font = Enum.Font.GothamBold; closeHubBtn.TextSize = 12
 Instance.new("UICorner", closeHubBtn).CornerRadius = UDim.new(0, 6)
 
 local scrollFrame = Instance.new("ScrollingFrame", hubMenu)
-scrollFrame.Size = UDim2.new(1, -30, 1, -170); scrollFrame.Position = UDim2.new(0, 15, 0, 80)
-scrollFrame.BackgroundTransparency = 1; scrollFrame.CanvasSize = UDim2.new(0, 0, 2, 0); scrollFrame.ScrollBarThickness = 4; scrollFrame.ScrollBarImageColor3 = SHINY_PURPLE
+scrollFrame.Size = UDim2.new(1, -20, 1, -130); scrollFrame.Position = UDim2.new(0, 10, 0, 60)
+scrollFrame.BackgroundTransparency = 1; scrollFrame.CanvasSize = UDim2.new(0, 0, 1.5, 0); scrollFrame.ScrollBarThickness = 3; scrollFrame.ScrollBarImageColor3 = SHINY_PURPLE
 local gridLayout = Instance.new("UIGridLayout", scrollFrame)
-gridLayout.CellSize = UDim2.new(0.48, 0, 0, 48); gridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
-Instance.new("UIPadding", scrollFrame).PaddingLeft = UDim.new(0, 2)
+gridLayout.CellSize = UDim2.new(0.47, 0, 0, 40); gridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
+Instance.new("UIPadding", scrollFrame).PaddingLeft = UDim.new(0, 4)
 
 local globalSaveBtn = Instance.new("TextButton", hubMenu)
-globalSaveBtn.Size = UDim2.new(0.9, 0, 0, 45); globalSaveBtn.Position = UDim2.new(0.05, 0, 1, -60)
-globalSaveBtn.Text = "SAVE CURRENT CONFIG"; globalSaveBtn.BackgroundColor3 = BG_COLOR; globalSaveBtn.TextColor3 = Color3.new(1, 1, 1); globalSaveBtn.Font = Enum.Font.GothamBold; globalSaveBtn.TextSize = 14
+globalSaveBtn.Size = UDim2.new(0.9, 0, 0, 40); globalSaveBtn.Position = UDim2.new(0.05, 0, 1, -55)
+globalSaveBtn.Text = "SAVE CURRENT CONFIG"; globalSaveBtn.BackgroundColor3 = BG_COLOR; globalSaveBtn.TextColor3 = Color3.new(1, 1, 1); globalSaveBtn.Font = Enum.Font.GothamBold; globalSaveBtn.TextSize = 12
 Instance.new("UICorner", globalSaveBtn).CornerRadius = UDim.new(0, 6)
 local gsbStroke = Instance.new("UIStroke", globalSaveBtn); gsbStroke.Thickness = 1.5; applyShinyGradient(gsbStroke, NEON_BLUE, Color3.new(1,1,1))
 
 -- [5] BAT FUCKER SPEED SLIDER MENU
-local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 250, 0, 150), UDim2.new(0.5, 240, 0.5, -180), NEON_BLUE)
+local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 200, 0, 130), UDim2.new(0.5, 180, 0.5, -65), NEON_BLUE)
 speedMenu.Visible = false; speedMenu.ZIndex = 50
 
 local speedTitleLabel = Instance.new("TextLabel", speedMenu)
-speedTitleLabel.Size = UDim2.new(1, 0, 0, 40); speedTitleLabel.Position = UDim2.new(0, 0, 0, 10)
-speedTitleLabel.Text = "TRACKING SPEED: " .. AdvancedSettings.BatSpeed; speedTitleLabel.TextColor3 = Color3.new(1, 1, 1); speedTitleLabel.Font = Enum.Font.GothamBold; speedTitleLabel.TextSize = 14; speedTitleLabel.BackgroundTransparency = 1; speedTitleLabel.ZIndex = 51
+speedTitleLabel.Size = UDim2.new(1, 0, 0, 35); speedTitleLabel.Position = UDim2.new(0, 0, 0, 5)
+speedTitleLabel.Text = "TRACKING SPEED: " .. AdvancedSettings.BatSpeed; speedTitleLabel.TextColor3 = Color3.new(1, 1, 1); speedTitleLabel.Font = Enum.Font.GothamBold; speedTitleLabel.TextSize = 12; speedTitleLabel.BackgroundTransparency = 1; speedTitleLabel.ZIndex = 51
 
 local sliderTrack = Instance.new("Frame", speedMenu)
-sliderTrack.Size = UDim2.new(0.8, 0, 0, 14); sliderTrack.Position = UDim2.new(0.1, 0, 0.45, 0)
+sliderTrack.Size = UDim2.new(0.8, 0, 0, 12); sliderTrack.Position = UDim2.new(0.1, 0, 0.45, 0)
 sliderTrack.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1); sliderTrack.ZIndex = 51; Instance.new("UICorner", sliderTrack)
 
 local sliderFill = Instance.new("Frame", sliderTrack)
@@ -275,26 +275,26 @@ local sliderTrigger = Instance.new("TextButton", sliderTrack)
 sliderTrigger.Size = UDim2.new(1, 0, 1, 0); sliderTrigger.BackgroundTransparency = 1; sliderTrigger.Text = ""; sliderTrigger.ZIndex = 53
 
 local confirmSpeedBtn = Instance.new("TextButton", speedMenu)
-confirmSpeedBtn.Size = UDim2.new(0.8, 0, 0, 35); confirmSpeedBtn.Position = UDim2.new(0.1, 0, 0.75, 0)
-confirmSpeedBtn.Text = "SAVE SPEED"; confirmSpeedBtn.BackgroundColor3 = BG_COLOR; confirmSpeedBtn.TextColor3 = Color3.new(1, 1, 1); confirmSpeedBtn.Font = Enum.Font.GothamBold; confirmSpeedBtn.TextSize = 12; confirmSpeedBtn.ZIndex = 51
+confirmSpeedBtn.Size = UDim2.new(0.8, 0, 0, 30); confirmSpeedBtn.Position = UDim2.new(0.1, 0, 0.70, 0)
+confirmSpeedBtn.Text = "SAVE SPEED"; confirmSpeedBtn.BackgroundColor3 = BG_COLOR; confirmSpeedBtn.TextColor3 = Color3.new(1, 1, 1); confirmSpeedBtn.Font = Enum.Font.GothamBold; confirmSpeedBtn.TextSize = 11; confirmSpeedBtn.ZIndex = 51
 Instance.new("UICorner", confirmSpeedBtn)
 local csbStroke = Instance.new("UIStroke", confirmSpeedBtn); csbStroke.Thickness = 1.2; csbStroke.Color = NEON_BLUE
 
 -- [6] S4BOOSTER SPEED SETTINGS MENU
-local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 260, 0, 220), UDim2.new(0.5, 240, 0.5, 0), NEON_BLUE)
+local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 220, 0, 180), UDim2.new(0.5, 180, 0.5, 0), NEON_BLUE)
 boosterMenu.Visible = false; boosterMenu.ZIndex = 50
 
 local boosterTitle = Instance.new("TextLabel", boosterMenu)
-boosterTitle.Size = UDim2.new(1, 0, 0, 35); boosterTitle.Position = UDim2.new(0, 0, 0, 5)
-boosterTitle.Text = "S4BOOSTER CONFIG"; boosterTitle.TextColor3 = Color3.new(1, 1, 1); boosterTitle.Font = Enum.Font.GothamBold; boosterTitle.TextSize = 16; boosterTitle.BackgroundTransparency = 1; boosterTitle.ZIndex = 51
+boosterTitle.Size = UDim2.new(1, 0, 0, 30); boosterTitle.Position = UDim2.new(0, 0, 0, 5)
+boosterTitle.Text = "S4BOOSTER CONFIG"; boosterTitle.TextColor3 = Color3.new(1, 1, 1); boosterTitle.Font = Enum.Font.GothamBold; boosterTitle.TextSize = 14; boosterTitle.BackgroundTransparency = 1; boosterTitle.ZIndex = 51
 
 -- Walk Speed Slider
 local wSpeedLabel = Instance.new("TextLabel", boosterMenu)
-wSpeedLabel.Size = UDim2.new(1, 0, 0, 20); wSpeedLabel.Position = UDim2.new(0, 0, 0, 45)
-wSpeedLabel.Text = "Walk Speed (0-70): " .. AdvancedSettings.WalkSpeed; wSpeedLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8); wSpeedLabel.Font = Enum.Font.GothamSemibold; wSpeedLabel.TextSize = 12; wSpeedLabel.BackgroundTransparency = 1; wSpeedLabel.ZIndex = 51
+wSpeedLabel.Size = UDim2.new(1, 0, 0, 20); wSpeedLabel.Position = UDim2.new(0, 0, 0, 35)
+wSpeedLabel.Text = "Walk Speed (0-70): " .. AdvancedSettings.WalkSpeed; wSpeedLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8); wSpeedLabel.Font = Enum.Font.GothamSemibold; wSpeedLabel.TextSize = 11; wSpeedLabel.BackgroundTransparency = 1; wSpeedLabel.ZIndex = 51
 
 local wTrack = Instance.new("Frame", boosterMenu)
-wTrack.Size = UDim2.new(0.8, 0, 0, 10); wTrack.Position = UDim2.new(0.1, 0, 0.33, 0)
+wTrack.Size = UDim2.new(0.8, 0, 0, 10); wTrack.Position = UDim2.new(0.1, 0, 0.30, 0)
 wTrack.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1); wTrack.ZIndex = 51; Instance.new("UICorner", wTrack)
 
 local wFill = Instance.new("Frame", wTrack)
@@ -306,8 +306,8 @@ wTrigger.Size = UDim2.new(1, 0, 1, 0); wTrigger.BackgroundTransparency = 1; wTri
 
 -- Carry Speed Slider
 local cSpeedLabel = Instance.new("TextLabel", boosterMenu)
-cSpeedLabel.Size = UDim2.new(1, 0, 0, 20); cSpeedLabel.Position = UDim2.new(0, 0, 0, 95)
-cSpeedLabel.Text = "Carry Speed (0-31): " .. AdvancedSettings.CarrySpeed; cSpeedLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8); cSpeedLabel.Font = Enum.Font.GothamSemibold; cSpeedLabel.TextSize = 12; cSpeedLabel.BackgroundTransparency = 1; cSpeedLabel.ZIndex = 51
+cSpeedLabel.Size = UDim2.new(1, 0, 0, 20); cSpeedLabel.Position = UDim2.new(0, 0, 0, 80)
+cSpeedLabel.Text = "Carry Speed (0-31): " .. AdvancedSettings.CarrySpeed; cSpeedLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8); cSpeedLabel.Font = Enum.Font.GothamSemibold; cSpeedLabel.TextSize = 11; cSpeedLabel.BackgroundTransparency = 1; cSpeedLabel.ZIndex = 51
 
 local cTrack = Instance.new("Frame", boosterMenu)
 cTrack.Size = UDim2.new(0.8, 0, 0, 10); cTrack.Position = UDim2.new(0.1, 0, 0.55, 0)
@@ -321,8 +321,8 @@ local cTrigger = Instance.new("TextButton", cTrack)
 cTrigger.Size = UDim2.new(1, 0, 1, 0); cTrigger.BackgroundTransparency = 1; cTrigger.Text = ""; cTrigger.ZIndex = 53
 
 local confirmBoosterBtn = Instance.new("TextButton", boosterMenu)
-confirmBoosterBtn.Size = UDim2.new(0.8, 0, 0, 35); confirmBoosterBtn.Position = UDim2.new(0.1, 0, 0.78, 0)
-confirmBoosterBtn.Text = "SAVE SPEED"; confirmBoosterBtn.BackgroundColor3 = BG_COLOR; confirmBoosterBtn.TextColor3 = Color3.new(1, 1, 1); confirmBoosterBtn.Font = Enum.Font.GothamBold; confirmBoosterBtn.TextSize = 12; confirmBoosterBtn.ZIndex = 51
+confirmBoosterBtn.Size = UDim2.new(0.8, 0, 0, 30); confirmBoosterBtn.Position = UDim2.new(0.1, 0, 0.78, 0)
+confirmBoosterBtn.Text = "SAVE SPEED"; confirmBoosterBtn.BackgroundColor3 = BG_COLOR; confirmBoosterBtn.TextColor3 = Color3.new(1, 1, 1); confirmBoosterBtn.Font = Enum.Font.GothamBold; confirmBoosterBtn.TextSize = 11; confirmBoosterBtn.ZIndex = 51
 Instance.new("UICorner", confirmBoosterBtn)
 local cbbStroke = Instance.new("UIStroke", confirmBoosterBtn); cbbStroke.Thickness = 1.2; cbbStroke.Color = NEON_BLUE
 
@@ -370,26 +370,26 @@ local function createSyncedButton(text, isToggle, parent, position, callback)
         stroke = Instance.new("UIStroke", frame); stroke.Thickness = 1.5; stroke.Color = Color3.new(1,1,1)
         applyShinyGradient(stroke, SHINY_PURPLE, Color3.new(1, 1, 1))
     else
-        frame, stroke = createStyledFrame(text.."_duelfucker", UDim2.new(0, 145, 0, 48), position, SHINY_PURPLE, parent)
+        frame, stroke = createStyledFrame(text.."_duelfucker", UDim2.new(0, 120, 0, 40), position, SHINY_PURPLE, parent)
         isDraggable = true
     end
 
     local actionBtn = Instance.new("TextButton", frame)
     actionBtn.Size = UDim2.new(1, 0, 1, 0); actionBtn.BackgroundTransparency = 1
-    actionBtn.Text = text; actionBtn.TextColor3 = Color3.new(1, 1, 1); actionBtn.Font = Enum.Font.GothamBold; actionBtn.TextSize = 13
+    actionBtn.Text = text; actionBtn.TextColor3 = Color3.new(1, 1, 1); actionBtn.Font = Enum.Font.GothamBold; actionBtn.TextSize = 11
 
-    -- Inject Gear Icons for Bat Fucker & S4BOOSTER
+    -- Inject Gear Icons
     if text == "Bat Fucker" then
         local gearIcon = Instance.new("TextButton", frame)
-        gearIcon.Size = UDim2.new(0, 26, 0, 26); gearIcon.Position = UDim2.new(1, -30, 0.5, -13)
-        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 16; gearIcon.ZIndex = 5
+        gearIcon.Size = UDim2.new(0, 22, 0, 22); gearIcon.Position = UDim2.new(1, -26, 0.5, -11)
+        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 14; gearIcon.ZIndex = 5
         makeInteractive(gearIcon, gearIcon, false, function() speedMenu.Visible = not speedMenu.Visible end)
     end
     
     if text == "S4BOOSTER" then
         local gearIcon = Instance.new("TextButton", frame)
-        gearIcon.Size = UDim2.new(0, 26, 0, 26); gearIcon.Position = UDim2.new(1, -30, 0.5, -13)
-        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 16; gearIcon.ZIndex = 5
+        gearIcon.Size = UDim2.new(0, 22, 0, 22); gearIcon.Position = UDim2.new(1, -26, 0.5, -11)
+        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 14; gearIcon.ZIndex = 5
         makeInteractive(gearIcon, gearIcon, false, function() boosterMenu.Visible = not boosterMenu.Visible end)
     end
 
@@ -507,7 +507,7 @@ local function runESP()
                 txt.Text = v.Name
                 txt.TextColor3 = ESP_COLOR
                 txt.Font = Enum.Font.GothamBold
-                txt.TextSize = 14
+                txt.TextSize = 12
                 txt.TextStrokeTransparency = 0
             end
         end
@@ -531,9 +531,8 @@ local function applyUnwalk(state)
 end
 
 local function handleBoosterToggle(state)
-    -- If toggled off, reset speed safely
     if not state and Player.Character and Player.Character:FindFirstChild("Humanoid") then
-        Player.Character.Humanoid.WalkSpeed = 16
+        -- Optional: Force reset walkspeed if they turn it off
     end
 end
 
@@ -542,7 +541,7 @@ UserInputService.JumpRequest:Connect(function()
     if States["Inf Jump"] and Player.Character then
         local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
-            hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
+            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 50, hrp.AssemblyLinearVelocity.Z)
         end
     end
 end)
@@ -590,7 +589,8 @@ createSyncedButton("Unwalk", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.4, 0), ap
 -- ========== BINDINGS & SETUP ==============
 -- ==========================================
 
-makeInteractive(lockFrame, lockBtn, true, function()
+-- NOTE: lockFrame is explicitly set to NOT be draggable (false flag)
+makeInteractive(lockFrame, lockBtn, false, function()
     guiLocked = not guiLocked
     lockBtn.Text = guiLocked and "LOCKED" or "LOCK GUI"
     lockStroke.Color = guiLocked and Color3.fromRGB(255, 50, 50) or NEON_BLUE
@@ -667,19 +667,36 @@ end)
 -- ==========================================
 -- ========== MASTER RUNTIME LOOP ===========
 -- ==========================================
-RunService.RenderStepped:Connect(function()
-    statsLabel.Text = string.format("FPS: %d | PING: %dms", math.floor(1 / RunService.RenderStepped:Wait()), math.floor(Player:GetNetworkPing() * 1000))
+local lastFpsUpdate = 0
+local frameCount = 0
+
+RunService.RenderStepped:Connect(function(deltaTime)
+    -- THROTTLED FPS COUNTER (Updates every 0.5s for readability)
+    frameCount = frameCount + 1
+    if tick() - lastFpsUpdate >= 0.5 then
+        local fps = math.floor(frameCount / (tick() - lastFpsUpdate))
+        local ping = math.floor(Player:GetNetworkPing() * 1000)
+        statsLabel.Text = string.format("FPS: %d | PING: %dms", fps, ping)
+        frameCount = 0
+        lastFpsUpdate = tick()
+    end
+
     runESP()
     runBatFuckerPhysics()
     
-    -- S4BOOSTER LOGIC
-    if States["S4BOOSTER"] and Player.Character and Player.Character:FindFirstChild("Humanoid") then
-        -- Checking for any Tool equipped inside Character
-        local isCarrying = Player.Character:FindFirstChildOfClass("Tool")
-        if isCarrying then
-            Player.Character.Humanoid.WalkSpeed = AdvancedSettings.CarrySpeed
-        else
-            Player.Character.Humanoid.WalkSpeed = AdvancedSettings.WalkSpeed
+    -- S4BOOSTER LOGIC (SMART ANTI-RUBBERBAND VELOCITY OVERRIDE)
+    if States["S4BOOSTER"] and Player.Character then
+        local hum = Player.Character:FindFirstChild("Humanoid")
+        local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
+        
+        if hum and hrp and hum.MoveDirection.Magnitude > 0 then
+            -- Determine if carrying a tool
+            local isCarrying = Player.Character:FindFirstChildOfClass("Tool") ~= nil
+            local targetSpeed = isCarrying and AdvancedSettings.CarrySpeed or AdvancedSettings.WalkSpeed
+            
+            -- Apply Velocity seamlessly in the direction the player is trying to move
+            local velocityDir = hum.MoveDirection * targetSpeed
+            hrp.AssemblyLinearVelocity = Vector3.new(velocityDir.X, hrp.AssemblyLinearVelocity.Y, velocityDir.Z)
         end
     end
 end)
