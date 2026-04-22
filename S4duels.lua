@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ FLAWLESS EXECUTION, PREMIUM GUI, CUSTOM INVENTORY CARRY DETECTION ]] --
+-- [[ FLAWLESS EXECUTION, PREMIUM GUI, ZERO-FOOTPRINT ANTI-CHEAT BYPASS ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -330,12 +330,12 @@ switchTab("S4DUELS")
 
 local globalSaveBtn = Instance.new("TextButton", hubMenu)
 globalSaveBtn.Size = UDim2.new(0.9, 0, 0, 35); globalSaveBtn.Position = UDim2.new(0.05, 0, 1, -45)
-globalSaveBtn.Text = "SAVE SETTINGS (S4HUB)"; globalSaveBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 20); globalSaveBtn.BackgroundTransparency = 0.5; globalSaveBtn.TextColor3 = Color3.new(1, 1, 1); globalSaveBtn.Font = Enum.Font.GothamBold; globalSaveBtn.TextSize = 12
+globalSaveBtn.Text = "SAVE SETTINGS (S4HUB)"; globalSaveBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 20); globalSaveBtn.TextColor3 = Color3.new(1, 1, 1); globalSaveBtn.Font = Enum.Font.GothamBold; globalSaveBtn.TextSize = 12
 Instance.new("UICorner", globalSaveBtn).CornerRadius = UDim.new(0, 8)
 local gsbStroke = Instance.new("UIStroke", globalSaveBtn); gsbStroke.Thickness = 2; applyShinyGradient(gsbStroke, NEON_BLUE, Color3.new(1,1,1))
 
 -- [5] BAT FUCKER SPEED SLIDER MENU
-local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 220, 0, 130), UDim2.new(0.5, 190, 0.5, -65), NEON_BLUE)
+local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 220, 0, 130), UDim2.new(0.5, 180, 0.5, -65), NEON_BLUE)
 speedMenu.Visible = false; speedMenu.ZIndex = 50
 
 local speedTitleLabel = Instance.new("TextLabel", speedMenu)
@@ -360,7 +360,7 @@ Instance.new("UICorner", confirmSpeedBtn).CornerRadius = UDim.new(0, 6)
 local csbStroke = Instance.new("UIStroke", confirmSpeedBtn); csbStroke.Thickness = 1.2; csbStroke.Color = NEON_BLUE
 
 -- [6] S4BOOSTER SPEED SETTINGS MENU
-local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 240, 0, 190), UDim2.new(0.5, 190, 0.5, 0), NEON_BLUE)
+local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 240, 0, 190), UDim2.new(0.5, 180, 0.5, 0), NEON_BLUE)
 boosterMenu.Visible = false; boosterMenu.ZIndex = 50
 
 local boosterTitle = Instance.new("TextLabel", boosterMenu)
@@ -384,14 +384,14 @@ wTrigger.Size = UDim2.new(1, 0, 1, 0); wTrigger.BackgroundTransparency = 1; wTri
 
 local cSpeedLabel = Instance.new("TextLabel", boosterMenu)
 cSpeedLabel.Size = UDim2.new(1, 0, 0, 20); cSpeedLabel.Position = UDim2.new(0, 0, 0, 85)
-cSpeedLabel.Text = "Carry Speed (0-31): " .. AdvancedSettings.CarrySpeed; cSpeedLabel.TextColor3 = Color3.new(0.9, 0.9, 0.9); cSpeedLabel.Font = Enum.Font.GothamSemibold; cSpeedLabel.TextSize = 11; cSpeedLabel.BackgroundTransparency = 1; cSpeedLabel.ZIndex = 51
+cSpeedLabel.Text = "Carry Speed (0-39): " .. AdvancedSettings.CarrySpeed; cSpeedLabel.TextColor3 = Color3.new(0.9, 0.9, 0.9); cSpeedLabel.Font = Enum.Font.GothamSemibold; cSpeedLabel.TextSize = 11; cSpeedLabel.BackgroundTransparency = 1; cSpeedLabel.ZIndex = 51
 
 local cTrack = Instance.new("Frame", boosterMenu)
 cTrack.Size = UDim2.new(0.8, 0, 0, 10); cTrack.Position = UDim2.new(0.1, 0, 0.55, 0)
 cTrack.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15); cTrack.BackgroundTransparency = 0.5; cTrack.ZIndex = 51; Instance.new("UICorner", cTrack)
 
 local cFill = Instance.new("Frame", cTrack)
-cFill.Size = UDim2.new(AdvancedSettings.CarrySpeed / 31, 0, 1, 0)
+cFill.Size = UDim2.new(AdvancedSettings.CarrySpeed / 39, 0, 1, 0)
 cFill.BackgroundColor3 = NEON_BLUE; cFill.ZIndex = 52; Instance.new("UICorner", cFill)
 
 local cTrigger = Instance.new("TextButton", cTrack)
@@ -403,7 +403,7 @@ confirmBoosterBtn.Text = "SAVE SPEED"; confirmBoosterBtn.BackgroundColor3 = Colo
 Instance.new("UICorner", confirmBoosterBtn).CornerRadius = UDim.new(0, 6)
 local cbbStroke = Instance.new("UIStroke", confirmBoosterBtn); cbbStroke.Thickness = 1.5; cbbStroke.Color = NEON_BLUE
 
--- [7] duelfucker HUD
+-- [7] duelfucker HUD (Container for draggable buttons)
 local duelFuckerHUD = Instance.new("Frame", screenGui)
 duelFuckerHUD.Size = UDim2.new(1, 0, 1, 0); duelFuckerHUD.BackgroundTransparency = 1; duelFuckerHUD.Visible = false
 
@@ -593,62 +593,15 @@ end
 
 local function handleBoosterToggle(state)
     if not state and Player.Character and Player.Character:FindFirstChild("Humanoid") then
-        -- Optional reset
+        Player.Character.Humanoid.WalkSpeed = 16
     end
 end
 
--- === SMART CUSTOM CARRY DETECTION (CUSTOM UI INVENTORY CHECK) ===
 local function isCarryingBrainrot()
-    local playerGui = Player:FindFirstChild("PlayerGui")
-    if playerGui then
-        -- Words commonly used by devs for Custom Inventory UIs
-        local invKeywords = {"inventory", "inv", "backpack", "hotbar", "items", "tools", "bag", "hud", "main", "slots"}
-        
-        for _, gui in pairs(playerGui:GetChildren()) do
-            if gui:IsA("ScreenGui") then
-                local name = string.lower(gui.Name)
-                local matchesKeyword = false
-                
-                for _, keyword in pairs(invKeywords) do
-                    if string.find(name, keyword) then
-                        matchesKeyword = true
-                        break
-                    end
-                end
-                
-                if matchesKeyword then
-                    -- Condition 1: The entire ScreenGui is disabled
-                    if not gui.Enabled then
-                        return true
-                    end
-                    
-                    -- Condition 2: The frames inside the ScreenGui are toggled invisible
-                    local frameCount = 0
-                    local hiddenCount = 0
-                    for _, child in pairs(gui:GetChildren()) do
-                        if child:IsA("Frame") or child:IsA("ScrollingFrame") then
-                            frameCount = frameCount + 1
-                            if not child.Visible then
-                                hiddenCount = hiddenCount + 1
-                            end
-                        end
-                    end
-                    
-                    -- If it relies on frames and all main frames are hidden
-                    if frameCount > 0 and hiddenCount == frameCount then
-                        return true
-                    end
-                end
-            end
-        end
-    end
-
-    -- Fallback: Default Roblox CoreGui Backpack check
     local success, isEnabled = pcall(function()
         return StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.Backpack)
     end)
     if success and isEnabled == false then return true end
-    
     return false
 end
 
@@ -727,7 +680,7 @@ makeInteractive(speedMenu, speedTitleLabel, true, nil)
 makeInteractive(confirmSpeedBtn, confirmSpeedBtn, false, function() saveConfigs(); speedMenu.Visible = false end)
 
 makeSliderInteractive(wTrigger, wTrack, wFill, wSpeedLabel, "WalkSpeed", 70, "Walk Speed (0-70): ")
-makeSliderInteractive(cTrigger, cTrack, cFill, cSpeedLabel, "CarrySpeed", 31, "Carry Speed (0-31): ")
+makeSliderInteractive(cTrigger, cTrack, cFill, cSpeedLabel, "CarrySpeed", 39, "Carry Speed (0-39): ")
 makeInteractive(boosterMenu, boosterTitle, true, nil)
 makeInteractive(confirmBoosterBtn, confirmBoosterBtn, false, function() saveConfigs(); boosterMenu.Visible = false end)
 
@@ -809,7 +762,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
             safeFlightCleanup(Player.Character)
         end
 
-        -- S4BOOSTER
+        -- S4BOOSTER (LINEAR VELOCITY OVERRIDE)
         if States["S4BOOSTER"] and Player.Character then
             local hum = Player.Character:FindFirstChild("Humanoid")
             local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
