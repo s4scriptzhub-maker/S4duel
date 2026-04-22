@@ -86,12 +86,23 @@ toggleHub.Size = UDim2.new(0, 80, 0, 26); toggleHub.Position = UDim2.new(0.5, -4
 Instance.new("UICorner", toggleHub).CornerRadius = UDim.new(0, 4)
 local thStroke = Instance.new("UIStroke", toggleHub); thStroke.Thickness = 1.2; applyShinyEffect(thStroke, SHINY_PURPLE, Color3.new(1,1,1))
 
--- 3. HUB MENU
+-- 3. HUB MENU (SETTINGS)
 local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 350), UDim2.new(0.5, -200, 0.5, -150), SHINY_PURPLE)
 hubFrame.Visible = false
 
+-- RESTORED: S4HUB TITLE
+local hubTitle = Instance.new("TextLabel", hubFrame)
+hubTitle.Size = UDim2.new(1, 0, 0, 50); hubTitle.Position = UDim2.new(0, 0, 0, 10); hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = "ArialBold"; hubTitle.TextSize = 26; hubTitle.BackgroundTransparency = 1
+local htStroke = Instance.new("UIStroke", hubTitle); htStroke.Thickness = 1.8; applyShinyEffect(htStroke, SHINY_PURPLE, Color3.new(1,1,1))
+
+-- RESTORED: CLOSE BUTTON
+local closeBtn = Instance.new("TextButton", hubFrame)
+closeBtn.Size = UDim2.new(0, 30, 0, 30); closeBtn.Position = UDim2.new(1, -35, 0, 10); closeBtn.Text = "X"; closeBtn.TextColor3 = Color3.new(1,1,1); closeBtn.Font = "GothamBold"; closeBtn.TextSize = 14; closeBtn.BackgroundColor3 = Color3.fromRGB(40, 10, 10); closeBtn.BackgroundTransparency = 0.5
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+closeBtn.MouseButton1Click:Connect(function() hubFrame.Visible = false end)
+
 local scroll = Instance.new("ScrollingFrame", hubFrame)
-scroll.Size = UDim2.new(1, -20, 1, -120); scroll.Position = UDim2.new(0, 10, 0, 75); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
+scroll.Size = UDim2.new(1, -20, 1, -130); scroll.Position = UDim2.new(0, 10, 0, 70); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
 Instance.new("UIGridLayout", scroll).CellSize = UDim2.new(0.48, 0, 0, 40)
 
 local saveBtn = Instance.new("TextButton", hubFrame)
@@ -132,11 +143,8 @@ createHubButton("Server Hop", false, function()
     end
 end)
 
--- SMOOTH CONTINUOUS INF JUMP (HOLD SPACE TO FLOAT)
 local infJumpActive = false
-createHubButton("Inf Jump", true, function(state)
-    infJumpActive = state
-end)
+createHubButton("Inf Jump", true, function(state) infJumpActive = state end)
 
 RunService.RenderStepped:Connect(function()
     if infJumpActive and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
