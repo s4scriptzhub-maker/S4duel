@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ PREMIUM TRANSLUCENT GUI, FLAWLESS FLIGHT, INSTANT STEAL ]] --
+-- [[ PREMIUM TRANSLUCENT GUI, FLAWLESS FLIGHT, AUTO-STEAL AURA ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -336,7 +336,7 @@ Instance.new("UICorner", globalSaveBtn).CornerRadius = UDim.new(0, 8)
 local gsbStroke = Instance.new("UIStroke", globalSaveBtn); gsbStroke.Thickness = 2; applyShinyGradient(gsbStroke, NEON_BLUE, Color3.new(1,1,1))
 
 -- [5] BAT FUCKER SPEED SLIDER MENU
-local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 220, 0, 130), UDim2.new(0.5, 190, 0.5, -65), NEON_BLUE)
+local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 220, 0, 130), UDim2.new(0.5, 180, 0.5, -65), NEON_BLUE)
 speedMenu.Visible = false; speedMenu.ZIndex = 50
 
 local speedTitleLabel = Instance.new("TextLabel", speedMenu)
@@ -361,7 +361,7 @@ Instance.new("UICorner", confirmSpeedBtn).CornerRadius = UDim.new(0, 6)
 local csbStroke = Instance.new("UIStroke", confirmSpeedBtn); csbStroke.Thickness = 1.2; csbStroke.Color = NEON_BLUE
 
 -- [6] S4BOOSTER SPEED SETTINGS MENU
-local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 240, 0, 190), UDim2.new(0.5, 190, 0.5, 0), NEON_BLUE)
+local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 240, 0, 190), UDim2.new(0.5, 180, 0.5, 0), NEON_BLUE)
 boosterMenu.Visible = false; boosterMenu.ZIndex = 50
 
 local boosterTitle = Instance.new("TextLabel", boosterMenu)
@@ -495,22 +495,59 @@ end
 -- ========== FEATURE LOGIC & PHYSICS =======
 -- ==========================================
 
--- === INSTANT STEAL (PROXIMITY BYPASS) ===
-local function applyInstantSteal(state)
-    if state then
-        -- Modify all existing prompts instantly
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("ProximityPrompt") then
-                obj.HoldDuration = 0
-            end
-        end
+-- === AUTO-STEAL AURA ENGINE ===
+local cachedPrompts = {}
+
+-- Populate initial prompts
+for _, obj in pairs(workspace:GetDescendants()) do
+    if obj:IsA("ProximityPrompt") then
+        table.insert(cachedPrompts, obj)
     end
 end
 
--- Hook into Workspace to instantly strip the timer off any newly dropped items
-workspace.DescendantAdded:Connect(function(descendant)
-    if States["Instant Steal"] and descendant:IsA("ProximityPrompt") then
-        descendant.HoldDuration = 0
+-- Listen for dynamically spawning brainrots
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("ProximityPrompt") then
+        table.insert(cachedPrompts, obj)
+    end
+end)
+
+-- The Aura Loop
+task.spawn(function()
+    while task.wait(0.1) do
+        if States["Instant Steal"] and Player.Character then
+            local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                -- Iterate backwards to safely remove invalid/deleted prompts
+                for i = #cachedPrompts, 1, -1 do
+                    local prompt = cachedPrompts[i]
+                    
+                    if not prompt or not prompt.Parent then
+                        table.remove(cachedPrompts, i)
+                    elseif prompt.Enabled then
+                        local part = prompt.Parent
+                        if part:IsA("BasePart") then
+                            local distance = (part.Position - hrp.Position).Magnitude
+                            
+                            -- If within grabbing distance (accounting for slight latency buffer)
+                            if distance <= prompt.MaxActivationDistance + 2 then
+                                -- Exploit Native function instantly grabs it without interacting
+                                if type(fireproximityprompt) == "function" then
+                                    fireproximityprompt(prompt, 0)
+                                else
+                                    -- Fallback method
+                                    local old = prompt.HoldDuration
+                                    prompt.HoldDuration = 0
+                                    prompt:InputHoldBegin()
+                                    prompt:InputHoldEnd()
+                                    prompt.HoldDuration = old
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
     end
 end)
 
@@ -652,7 +689,7 @@ end
 createSyncedButton("duelfucker", true, s4duelsScroll, nil, activateDuelFuckerMode)
 createSyncedButton("Bat Fucker", true, s4duelsScroll, nil, nil)
 createSyncedButton("S4BOOSTER", true, s4duelsScroll, nil, handleBoosterToggle)
-createSyncedButton("Instant Steal", true, s4duelsScroll, nil, applyInstantSteal)
+createSyncedButton("Instant Steal", true, s4duelsScroll, nil, nil) -- Automatically handled by the Aura Loop
 createSyncedButton("Inf Jump", true, s4duelsScroll, nil, nil)
 createSyncedButton("Unwalk", true, s4duelsScroll, nil, applyUnwalk)
 createSyncedButton("FPS Booster", false, s4duelsScroll, nil, applyFPSBoost)
@@ -675,7 +712,7 @@ createSyncedButton("Kick Self", false, serverScroll, nil, function() Player:Kick
 -- [POPULATE duelfucker HUD]
 createSyncedButton("Bat Fucker", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.3, 0), nil)
 createSyncedButton("S4BOOSTER", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.4, 0), handleBoosterToggle)
-createSyncedButton("Instant Steal", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.5, 0), applyInstantSteal)
+createSyncedButton("Instant Steal", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.5, 0), nil)
 createSyncedButton("ESP", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.5, 0), nil)
 createSyncedButton("Inf Jump", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.3, 0), nil)
 createSyncedButton("Unwalk", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.4, 0), applyUnwalk)
