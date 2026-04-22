@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ FLAWLESS EXECUTION, TABBED PREMIUM GUI, ZERO-FOOTPRINT ANTI-CHEAT BYPASS ]] --
+-- [[ PREMIUM TRANSLUCENT GUI, FLAWLESS FLIGHT, SMART CARRY DETECTION ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -259,8 +259,7 @@ openSettingsBtn.Text = "S4HUB"; openSettingsBtn.BackgroundColor3 = Color3.fromRG
 Instance.new("UICorner", openSettingsBtn).CornerRadius = UDim.new(0, 6)
 local osbStroke = Instance.new("UIStroke", openSettingsBtn); osbStroke.Thickness = 1.2; osbStroke.Color = SHINY_PURPLE
 
--- [2] STATIC LOCK BUTTON (Moved noticeably higher and more left)
--- Y changed from 50 to 35. X changed from -195 to -215
+-- [2] STATIC LOCK BUTTON
 local lockFrame, lockStroke = createStyledFrame("LockGUI", UDim2.new(0, 85, 0, 35), UDim2.new(0.5, -215, 0, 35), NEON_BLUE)
 local lockBtn = Instance.new("TextButton", lockFrame)
 lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1
@@ -273,7 +272,7 @@ returnBtn.Size = UDim2.new(1, 0, 1, 0); returnBtn.BackgroundTransparency = 1
 returnBtn.Text = "S4HUB"; returnBtn.TextColor3 = Color3.new(1, 1, 1); returnBtn.Font = Enum.Font.GothamBold; returnBtn.TextSize = 14
 returnFrame.Visible = false
 
--- [4] S4HUB MAIN SETTINGS MENU (Shrunk to 340x400 for better mobile fit)
+-- [4] S4HUB MAIN SETTINGS MENU
 local hubMenu, hubMenuStroke = createStyledFrame("S4HUB_Menu", UDim2.new(0, 340, 0, 400), UDim2.new(0.5, -170, 0.5, -200), SHINY_PURPLE)
 hubMenu.Visible = false
 
@@ -301,7 +300,6 @@ local serverTab = Instance.new("TextButton", tabContainer)
 serverTab.Size = UDim2.new(0.48, 0, 1, 0); serverTab.Position = UDim2.new(0.52, 0, 0, 0)
 serverTab.BackgroundTransparency = 1; serverTab.Text = "SERVER"; serverTab.Font = Enum.Font.GothamBold; serverTab.TextSize = 13
 
--- Scroll Frames (Separated by tabs)
 local s4duelsScroll = Instance.new("ScrollingFrame", hubMenu)
 s4duelsScroll.Size = UDim2.new(1, -20, 1, -140); s4duelsScroll.Position = UDim2.new(0, 10, 0, 85)
 s4duelsScroll.BackgroundTransparency = 1; s4duelsScroll.CanvasSize = UDim2.new(0, 0, 1.4, 0); s4duelsScroll.ScrollBarThickness = 3; s4duelsScroll.ScrollBarImageColor3 = SHINY_PURPLE
@@ -319,21 +317,16 @@ Instance.new("UIPadding", serverScroll).PaddingLeft = UDim.new(0, 2)
 
 local function switchTab(tabName)
     if tabName == "S4DUELS" then
-        s4duelsScroll.Visible = true
-        serverScroll.Visible = false
-        s4duelsTab.TextColor3 = NEON_BLUE
-        serverTab.TextColor3 = Color3.fromRGB(120, 120, 130)
+        s4duelsScroll.Visible = true; serverScroll.Visible = false
+        s4duelsTab.TextColor3 = NEON_BLUE; serverTab.TextColor3 = Color3.fromRGB(120, 120, 130)
     else
-        s4duelsScroll.Visible = false
-        serverScroll.Visible = true
-        s4duelsTab.TextColor3 = Color3.fromRGB(120, 120, 130)
-        serverTab.TextColor3 = NEON_BLUE
+        s4duelsScroll.Visible = false; serverScroll.Visible = true
+        s4duelsTab.TextColor3 = Color3.fromRGB(120, 120, 130); serverTab.TextColor3 = NEON_BLUE
     end
 end
-
 s4duelsTab.MouseButton1Click:Connect(function() switchTab("S4DUELS") end)
 serverTab.MouseButton1Click:Connect(function() switchTab("SERVER") end)
-switchTab("S4DUELS") -- Set Default Tab
+switchTab("S4DUELS")
 
 local globalSaveBtn = Instance.new("TextButton", hubMenu)
 globalSaveBtn.Size = UDim2.new(0.9, 0, 0, 35); globalSaveBtn.Position = UDim2.new(0.05, 0, 1, -45)
@@ -410,7 +403,7 @@ confirmBoosterBtn.Text = "SAVE SPEED"; confirmBoosterBtn.BackgroundColor3 = Colo
 Instance.new("UICorner", confirmBoosterBtn).CornerRadius = UDim.new(0, 6)
 local cbbStroke = Instance.new("UIStroke", confirmBoosterBtn); cbbStroke.Thickness = 1.5; cbbStroke.Color = NEON_BLUE
 
--- [7] duelfucker HUD (Container for draggable buttons)
+-- [7] duelfucker HUD
 local duelFuckerHUD = Instance.new("Frame", screenGui)
 duelFuckerHUD.Size = UDim2.new(1, 0, 1, 0); duelFuckerHUD.BackgroundTransparency = 1; duelFuckerHUD.Visible = false
 
@@ -600,16 +593,8 @@ end
 
 local function handleBoosterToggle(state)
     if not state and Player.Character and Player.Character:FindFirstChild("Humanoid") then
-        Player.Character.Humanoid.WalkSpeed = 16
+        -- Optional reset logic if needed
     end
-end
-
-local function isCarryingBrainrot()
-    local success, isEnabled = pcall(function()
-        return StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.Backpack)
-    end)
-    if success and isEnabled == false then return true end
-    return false
 end
 
 -- === MOBILE & PC SAFE INFINITE JUMP ===
@@ -694,17 +679,29 @@ makeInteractive(confirmBoosterBtn, confirmBoosterBtn, false, function() saveConf
 -- ==========================================
 -- ========== HEARTBEAT PHYSICS ENGINE ======
 -- ==========================================
-local wasBatFuckerActive = false
+local function safeFlightCleanup(char)
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local att = hrp:FindFirstChild("StealthAtt")
+        local lv = hrp:FindFirstChild("StealthLV")
+        if att then att:Destroy() end
+        if lv then lv:Destroy() end
+    end
+end
 
 RunService.Heartbeat:Connect(function(deltaTime)
-    -- BAT FUCKER (HEARTBEAT SYNCED)
+    -- BAT FUCKER (ZERO-FOOTPRINT ANTI-CHEAT BYPASS)
     if States["Bat Fucker"] and Player.Character then
-        wasBatFuckerActive = true
         local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
         local hum = Player.Character:FindFirstChild("Humanoid")
         
         if hrp and hum then
-            hum.PlatformStand = true 
+            -- Put Humanoid into Physics mode (stops it from trying to stand up, avoiding neck breaks/tripping)
+            if hum:GetState() ~= Enum.HumanoidStateType.Physics then
+                hum:ChangeState(Enum.HumanoidStateType.Physics)
+            end
+            
             local targetHrp = nil
             local shortestDist = math.huge
 
@@ -722,38 +719,54 @@ RunService.Heartbeat:Connect(function(deltaTime)
 
             if targetHrp then
                 local targetPos = targetHrp.Position
-                local hoverTarget = targetPos + Vector3.new(0, 1.5, 0)
-                local predictedPos = hoverTarget + (targetHrp.AssemblyLinearVelocity * 0.1)
-                
+                local predictedPos = targetPos + (targetHrp.AssemblyLinearVelocity * 0.1)
                 local direction = (predictedPos - hrp.Position).Unit
                 local distance = (predictedPos - hrp.Position).Magnitude
                 
-                local lookAtPos = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
-                hrp.CFrame = CFrame.lookAt(hrp.Position, lookAtPos)
+                -- Keep Character Upright (No falling over/tilting into the ground)
+                hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z))
+
+                -- Stealth Flight Engine (Bypasses BodyVelocity Scans)
+                local att = hrp:FindFirstChild("StealthAtt")
+                if not att then
+                    att = Instance.new("Attachment")
+                    att.Name = "StealthAtt"
+                    att.Parent = hrp
+                end
+                
+                local lv = hrp:FindFirstChild("StealthLV")
+                if not lv then
+                    lv = Instance.new("LinearVelocity")
+                    lv.Name = "StealthLV"
+                    lv.Attachment0 = att
+                    lv.MaxForce = math.huge
+                    lv.Parent = hrp
+                end
 
                 if distance > 4 then
-                    hrp.AssemblyLinearVelocity = direction * AdvancedSettings.BatSpeed
+                    lv.VectorVelocity = direction * AdvancedSettings.BatSpeed
                 else
-                    hrp.AssemblyLinearVelocity = targetHrp.AssemblyLinearVelocity + (direction * 2)
+                    lv.VectorVelocity = targetHrp.AssemblyLinearVelocity + (direction * 2)
                 end
             else
-                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                safeFlightCleanup(Player.Character)
             end
         end
     else
-        if wasBatFuckerActive and Player.Character then
-            wasBatFuckerActive = false
-            local hum = Player.Character:FindFirstChild("Humanoid")
-            if hum then hum.PlatformStand = false end
+        -- Clean up flight components safely
+        if Player.Character then
+            safeFlightCleanup(Player.Character)
         end
 
-        -- S4BOOSTER
+        -- S4BOOSTER (SMART BASE WALKSPEED PENALTY DETECTOR)
         if States["S4BOOSTER"] and Player.Character then
             local hum = Player.Character:FindFirstChild("Humanoid")
             local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
             
             if hum and hrp and hum.MoveDirection.Magnitude > 0 then
-                local isCarrying = isCarryingBrainrot()
+                -- Smart Detection: "Steal a Brainrot" naturally forces your Humanoid WalkSpeed down when carrying.
+                -- If it drops below normal walking speed (16), we instantly know you picked up a brainrot.
+                local isCarrying = (hum.WalkSpeed < 15.5 and hum.WalkSpeed > 0)
                 local targetSpeed = isCarrying and AdvancedSettings.CarrySpeed or AdvancedSettings.WalkSpeed
                 
                 local velocityDir = hum.MoveDirection * targetSpeed
@@ -761,6 +774,15 @@ RunService.Heartbeat:Connect(function(deltaTime)
             end
         end
     end
+end)
+
+-- Cleanup flight forces on death
+Player.CharacterAdded:Connect(function(char)
+    char.Humanoid.Died:Connect(function()
+        States["Bat Fucker"] = false
+        syncUIState("Bat Fucker")
+        safeFlightCleanup(char)
+    end)
 end)
 
 -- ==========================================
