@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ FLAWLESS EXECUTION, ANTI-TRIP PHYSICS, BRUTE-FORCE STEAL AURA ]] --
+-- [[ COMPACT MOBILE GUI, ANTI-TRIP PHYSICS, AGGRESSIVE AUTO-STEAL ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -273,8 +273,8 @@ returnBtn.Size = UDim2.new(1, 0, 1, 0); returnBtn.BackgroundTransparency = 1
 returnBtn.Text = "S4HUB"; returnBtn.TextColor3 = Color3.new(1, 1, 1); returnBtn.Font = Enum.Font.GothamBold; returnBtn.TextSize = 14
 returnFrame.Visible = false
 
--- [4] S4HUB MAIN SETTINGS MENU
-local hubMenu, hubMenuStroke = createStyledFrame("S4HUB_Menu", UDim2.new(0, 340, 0, 400), UDim2.new(0.5, -170, 0.5, -200), SHINY_PURPLE)
+-- [4] S4HUB MAIN SETTINGS MENU (COMPACT FOR MOBILE: 320x320)
+local hubMenu, hubMenuStroke = createStyledFrame("S4HUB_Menu", UDim2.new(0, 320, 0, 320), UDim2.new(0.5, -160, 0.5, -160), SHINY_PURPLE)
 hubMenu.Visible = false
 
 local hubTitle = Instance.new("TextLabel", hubMenu)
@@ -302,18 +302,18 @@ serverTab.Size = UDim2.new(0.48, 0, 1, 0); serverTab.Position = UDim2.new(0.52, 
 serverTab.BackgroundTransparency = 1; serverTab.Text = "SERVER"; serverTab.Font = Enum.Font.GothamBold; serverTab.TextSize = 13
 
 local s4duelsScroll = Instance.new("ScrollingFrame", hubMenu)
-s4duelsScroll.Size = UDim2.new(1, -20, 1, -140); s4duelsScroll.Position = UDim2.new(0, 10, 0, 85)
-s4duelsScroll.BackgroundTransparency = 1; s4duelsScroll.CanvasSize = UDim2.new(0, 0, 1.4, 0); s4duelsScroll.ScrollBarThickness = 3; s4duelsScroll.ScrollBarImageColor3 = SHINY_PURPLE
+s4duelsScroll.Size = UDim2.new(1, -20, 1, -125); s4duelsScroll.Position = UDim2.new(0, 10, 0, 80)
+s4duelsScroll.BackgroundTransparency = 1; s4duelsScroll.CanvasSize = UDim2.new(0, 0, 1.6, 0); s4duelsScroll.ScrollBarThickness = 3; s4duelsScroll.ScrollBarImageColor3 = SHINY_PURPLE
 local s4Layout = Instance.new("UIGridLayout", s4duelsScroll)
-s4Layout.CellSize = UDim2.new(0.48, 0, 0, 38); s4Layout.CellPadding = UDim2.new(0, 8, 0, 8)
+s4Layout.CellSize = UDim2.new(0.48, 0, 0, 35); s4Layout.CellPadding = UDim2.new(0, 8, 0, 8)
 Instance.new("UIPadding", s4duelsScroll).PaddingLeft = UDim.new(0, 2)
 
 local serverScroll = Instance.new("ScrollingFrame", hubMenu)
-serverScroll.Size = UDim2.new(1, -20, 1, -140); serverScroll.Position = UDim2.new(0, 10, 0, 85)
+serverScroll.Size = UDim2.new(1, -20, 1, -125); serverScroll.Position = UDim2.new(0, 10, 0, 80)
 serverScroll.BackgroundTransparency = 1; serverScroll.CanvasSize = UDim2.new(0, 0, 1, 0); serverScroll.ScrollBarThickness = 3; serverScroll.ScrollBarImageColor3 = SHINY_PURPLE
 serverScroll.Visible = false
 local serverLayout = Instance.new("UIGridLayout", serverScroll)
-serverLayout.CellSize = UDim2.new(0.48, 0, 0, 38); serverLayout.CellPadding = UDim2.new(0, 8, 0, 8)
+serverLayout.CellSize = UDim2.new(0.48, 0, 0, 35); serverLayout.CellPadding = UDim2.new(0, 8, 0, 8)
 Instance.new("UIPadding", serverScroll).PaddingLeft = UDim.new(0, 2)
 
 local function switchTab(tabName)
@@ -330,7 +330,7 @@ serverTab.MouseButton1Click:Connect(function() switchTab("SERVER") end)
 switchTab("S4DUELS")
 
 local globalSaveBtn = Instance.new("TextButton", hubMenu)
-globalSaveBtn.Size = UDim2.new(0.9, 0, 0, 35); globalSaveBtn.Position = UDim2.new(0.05, 0, 1, -45)
+globalSaveBtn.Size = UDim2.new(0.9, 0, 0, 35); globalSaveBtn.Position = UDim2.new(0.05, 0, 1, -40)
 globalSaveBtn.Text = "SAVE SETTINGS (S4HUB)"; globalSaveBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 20); globalSaveBtn.TextColor3 = Color3.new(1, 1, 1); globalSaveBtn.Font = Enum.Font.GothamBold; globalSaveBtn.TextSize = 12
 Instance.new("UICorner", globalSaveBtn).CornerRadius = UDim.new(0, 8)
 local gsbStroke = Instance.new("UIStroke", globalSaveBtn); gsbStroke.Thickness = 2; applyShinyGradient(gsbStroke, NEON_BLUE, Color3.new(1,1,1))
@@ -404,7 +404,7 @@ confirmBoosterBtn.Text = "SAVE SPEED"; confirmBoosterBtn.BackgroundColor3 = Colo
 Instance.new("UICorner", confirmBoosterBtn).CornerRadius = UDim.new(0, 6)
 local cbbStroke = Instance.new("UIStroke", confirmBoosterBtn); cbbStroke.Thickness = 1.5; cbbStroke.Color = NEON_BLUE
 
--- [7] duelfucker HUD
+-- [7] duelfucker HUD (Container for draggable buttons)
 local duelFuckerHUD = Instance.new("Frame", screenGui)
 duelFuckerHUD.Size = UDim2.new(1, 0, 1, 0); duelFuckerHUD.BackgroundTransparency = 1; duelFuckerHUD.Visible = false
 
@@ -495,26 +495,23 @@ end
 -- ========== FEATURE LOGIC & PHYSICS =======
 -- ==========================================
 
--- === BRUTE-FORCE INSTANT STEAL AURA ===
+-- === AGGRESSIVE AUTO-STEAL AURA ENGINE ===
 local cachedPrompts = {}
 
--- Cache existing prompts
 for _, obj in pairs(workspace:GetDescendants()) do
     if obj:IsA("ProximityPrompt") then
         table.insert(cachedPrompts, obj)
     end
 end
 
--- Cache new prompts dynamically
 workspace.DescendantAdded:Connect(function(obj)
     if obj:IsA("ProximityPrompt") then
         table.insert(cachedPrompts, obj)
     end
 end)
 
--- Fast-Loop Aura Engine
 task.spawn(function()
-    while task.wait(0.05) do
+    while task.wait(0.1) do
         if States["Instant Steal"] and Player.Character then
             local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
@@ -525,20 +522,23 @@ task.spawn(function()
                     elseif prompt.Enabled then
                         local part = prompt.Parent
                         if part:IsA("BasePart") then
-                            prompt.HoldDuration = 0 -- Permanently strip timer
+                            -- Aggressively force duration to zero
+                            prompt.HoldDuration = 0 
                             
                             local distance = (part.Position - hrp.Position).Magnitude
-                            -- 15 stud radius ensures you catch it immediately
-                            if distance <= 15 then
-                                -- Try native exploit function first
-                                if type(fireproximityprompt) == "function" then
-                                    fireproximityprompt(prompt, 1)
-                                end
+                            if distance <= prompt.MaxActivationDistance + 5 then
+                                -- Method 1: Executor Override
+                                pcall(function()
+                                    if type(fireproximityprompt) == "function" then
+                                        fireproximityprompt(prompt, 1)
+                                        fireproximityprompt(prompt, 0)
+                                    end
+                                end)
                                 
-                                -- Brute-force input simulation fallback
+                                -- Method 2: Native Physical Input Simulation (Foolproof Fallback)
                                 pcall(function()
                                     prompt:InputHoldBegin()
-                                    task.wait()
+                                    task.wait() 
                                     prompt:InputHoldEnd()
                                 end)
                             end
@@ -843,7 +843,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
             safeFlightCleanup(Player.Character)
         end
 
-        -- S4BOOSTER
+        -- S4BOOSTER (LINEAR VELOCITY OVERRIDE)
         if States["S4BOOSTER"] and Player.Character then
             local hum = Player.Character:FindFirstChild("Humanoid")
             local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
