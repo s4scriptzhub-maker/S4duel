@@ -291,7 +291,7 @@ boosterTitle.Text = "S4BOOSTER CONFIG"; boosterTitle.TextColor3 = Color3.new(1, 
 -- Walk Speed Slider
 local wSpeedLabel = Instance.new("TextLabel", boosterMenu)
 wSpeedLabel.Size = UDim2.new(1, 0, 0, 20); wSpeedLabel.Position = UDim2.new(0, 0, 0, 35)
-wSpeedLabel.Text = "Walk Speed (0-70): " .. AdvancedSettings.WalkSpeed; wSpeedLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8); wSpeedLabel.Font = Enum.Font.GothamSemibold; wSpeedLabel.TextSize = 11; wSpeedLabel.BackgroundTransparency = 1; wSpeedLabel.ZIndex = 51
+wSpeedLabel.Text = "Walk Speed (0-60): " .. AdvancedSettings.WalkSpeed; wSpeedLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8); wSpeedLabel.Font = Enum.Font.GothamSemibold; wSpeedLabel.TextSize = 11; wSpeedLabel.BackgroundTransparency = 1; wSpeedLabel.ZIndex = 51
 
 local wTrack = Instance.new("Frame", boosterMenu)
 wTrack.Size = UDim2.new(0.8, 0, 0, 10); wTrack.Position = UDim2.new(0.1, 0, 0.30, 0)
