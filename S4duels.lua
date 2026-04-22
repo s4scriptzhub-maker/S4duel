@@ -6,6 +6,12 @@ local HttpService = game:GetService("HttpService")
 
 local Player = Players.LocalPlayer
 local playerGui = Player:WaitForChild("PlayerGui")
+local ConfigFile = "S4DUELS_Config.json"
+
+-- === SETTINGS STORAGE ===
+local SavedSettings = {
+    Toggles = {},
+}
 
 -- === PREMIUM COLORS ===
 local SHINY_PURPLE = Color3.fromRGB(210, 80, 255)
@@ -15,28 +21,35 @@ local BG_COLOR = Color3.fromRGB(10, 10, 15)
 local guiLocked = false
 
 -- === UTILITY FUNCTIONS ===
+local function saveConfig()
+    if writefile then
+        writefile(ConfigFile, HttpService:JSONEncode(SavedSettings))
+    end
+end
+
+local function loadConfig()
+    if isfile and isfile(ConfigFile) then
+        local success, data = pcall(function() return HttpService:JSONDecode(readfile(ConfigFile)) end)
+        if success then SavedSettings = data end
+    end
+end
+
 local function rejoinServer()
     TeleportService:Teleport(game.PlaceId, Player)
 end
 
 local function serverHop()
-    local servers = {}
     local api = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
     local success, result = pcall(function() return HttpService:JSONDecode(game:HttpGet(api)) end)
-    
     if success and result.data then
         for _, server in pairs(result.data) do
             if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                table.insert(servers, server.id)
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, Player)
+                return
             end
         end
     end
-    
-    if #servers > 0 then
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], Player)
-    else
-        rejoinServer()
-    end
+    rejoinServer()
 end
 
 -- === UI BUILDER ===
@@ -44,7 +57,6 @@ local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.Name = "S4_Shiny_Elite"
 screenGui.ResetOnSpawn = false
 
--- Enhanced Shiny Effect
 local function applyShinyEffect(instance, color1, color2)
     local grad = Instance.new("UIGradient", instance)
     grad.Color = ColorSequence.new({
@@ -54,7 +66,6 @@ local function applyShinyEffect(instance, color1, color2)
         ColorSequenceKeypoint.new(0.6, color1),
         ColorSequenceKeypoint.new(1, color1)
     })
-    
     task.spawn(function()
         local rotation = 0
         RunService.RenderStepped:Connect(function(deltaTime)
@@ -62,18 +73,16 @@ local function applyShinyEffect(instance, color1, color2)
             grad.Rotation = rotation
         end)
     end)
-    
     return grad
 end
 
 local function createFrame(name, size, pos, accent)
     local f = Instance.new("Frame", screenGui)
     f.Name = name; f.Size = size; f.Position = pos
-    f.BackgroundColor3 = BG_COLOR; f.BackgroundTransparency = 0.6 --
+    f.BackgroundColor3 = BG_COLOR; f.BackgroundTransparency = 0.6
     Instance.new("UICorner", f).CornerRadius = UDim.new(0, 4)
     local s = Instance.new("UIStroke", f)
-    s.Thickness = 1.2
-    s.Color = Color3.new(1,1,1)
+    s.Thickness = 1.2; s.Color = Color3.new(1,1,1)
     applyShinyEffect(s, accent or SHINY_PURPLE, Color3.new(1,1,1))
     return f, s
 end
@@ -85,8 +94,6 @@ lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1; lockBt
 
 -- 2. MAIN HEADER
 local mainFrame = createFrame("Main", UDim2.new(0, 180, 0, 85), UDim2.new(0.5, -90, 0, 50), SHINY_PURPLE)
-
--- S4DUELS Title (Transparent with Outline)
 local title = Instance.new("TextLabel", mainFrame)
 title.Size = UDim2.new(1, 0, 0, 35); title.Position = UDim2.new(0, 0, 0, 5); title.Text = "S4DUELS"; title.TextColor3 = Color3.new(1,1,1); title.Font = "ArialBold"; title.TextSize = 22; title.BackgroundTransparency = 1
 local tStroke = Instance.new("UIStroke", title); tStroke.Thickness = 1.5; applyShinyEffect(tStroke, SHINY_PURPLE, Color3.new(1,1,1))
@@ -94,59 +101,81 @@ local tStroke = Instance.new("UIStroke", title); tStroke.Thickness = 1.5; applyS
 local stats = Instance.new("TextLabel", mainFrame)
 stats.Size = UDim2.new(1, 0, 0, 15); stats.Position = UDim2.new(0,0,0,42); stats.TextColor3 = Color3.fromRGB(200,200,200); stats.TextSize = 8.5; stats.BackgroundTransparency = 1
 
--- S4HUB Toggle Button
 local toggleHub = Instance.new("TextButton", mainFrame)
 toggleHub.Size = UDim2.new(0, 80, 0, 26); toggleHub.Position = UDim2.new(0.5, -40, 1, 10); toggleHub.Text = "S4HUB"; toggleHub.Font = "GothamBold"; toggleHub.BackgroundColor3 = BG_COLOR; toggleHub.BackgroundTransparency = 0.6; toggleHub.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", toggleHub).CornerRadius = UDim.new(0, 4)
 local thStroke = Instance.new("UIStroke", toggleHub); thStroke.Thickness = 1.2; applyShinyEffect(thStroke, SHINY_PURPLE, Color3.new(1,1,1))
 
--- 3. HUB MENU (S4HUB)
-local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 300), UDim2.new(0.5, -200, 0.5, -150), SHINY_PURPLE)
+-- 3. HUB MENU
+local hubFrame = createFrame("Hub", UDim2.new(0, 400, 0, 350), UDim2.new(0.5, -200, 0.5, -150), SHINY_PURPLE)
 hubFrame.Visible = false
 
--- S4HUB Title (Transparent with Outline)
 local hubTitle = Instance.new("TextLabel", hubFrame)
-hubTitle.Size = UDim2.new(1, 0, 0, 60); hubTitle.Position = UDim2.new(0, 0, 0, 5); hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = "ArialBold"; hubTitle.TextSize = 28; hubTitle.BackgroundTransparency = 1
+hubTitle.Size = UDim2.new(1, 0, 0, 60); hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = "ArialBold"; hubTitle.TextSize = 28; hubTitle.BackgroundTransparency = 1
 local hTStroke = Instance.new("UIStroke", hubTitle); hTStroke.Thickness = 2; applyShinyEffect(hTStroke, SHINY_PURPLE, Color3.new(1,1,1))
 
 local closeHub = Instance.new("TextButton", hubFrame)
 closeHub.Size = UDim2.new(0, 24, 0, 24); closeHub.Position = UDim2.new(1, -30, 0, 15); closeHub.Text = "×"; closeHub.BackgroundColor3 = Color3.fromRGB(45,15,20); closeHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", closeHub).CornerRadius = UDim.new(1,0)
 
 local scroll = Instance.new("ScrollingFrame", hubFrame)
-scroll.Size = UDim2.new(1, -20, 1, -90); scroll.Position = UDim2.new(0, 10, 0, 75); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
+scroll.Size = UDim2.new(1, -20, 1, -120); scroll.Position = UDim2.new(0, 10, 0, 75); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
 Instance.new("UIGridLayout", scroll).CellSize = UDim2.new(0.48, 0, 0, 40)
 
--- === SETTINGS BUTTONS WITH OUTLINE ===
+-- Save Button at the Bottom
+local saveBtn = Instance.new("TextButton", hubFrame)
+saveBtn.Size = UDim2.new(0.9, 0, 0, 35); saveBtn.Position = UDim2.new(0.05, 0, 1, -45); saveBtn.Text = "SAVE SETTINGS"; saveBtn.BackgroundColor3 = BG_COLOR; saveBtn.TextColor3 = Color3.new(1,1,1); saveBtn.Font = "GothamBold"
+Instance.new("UICorner", saveBtn)
+local sbs = Instance.new("UIStroke", saveBtn); sbs.Thickness = 1.5; applyShinyEffect(sbs, NEON_BLUE, Color3.new(1,1,1))
+saveBtn.MouseButton1Click:Connect(saveConfig)
+
+-- === HUB BUTTON BUILDER ===
 local function createHubButton(text, func)
     local b = Instance.new("TextButton", scroll)
     b.Text = text; b.BackgroundColor3 = BG_COLOR; b.BackgroundTransparency = 0.6; b.TextColor3 = Color3.new(1,1,1); b.Font = "GothamBold"; b.TextSize = 12
     Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
     local bs = Instance.new("UIStroke", b); bs.Thickness = 1.2; applyShinyEffect(bs, SHINY_PURPLE, Color3.new(1,1,1))
-    b.MouseButton1Click:Connect(func)
+    b.MouseButton1Click:Connect(function() 
+        func() 
+        if text ~= "Rejoin Server" and text ~= "Server Hop" and text ~= "Kick Self" then
+            SavedSettings.Toggles[text] = true -- Simple tracking for persistence
+        end
+    end)
     return b
 end
 
+-- Functional Buttons
 createHubButton("Rejoin Server", rejoinServer)
 createHubButton("Server Hop", serverHop)
 createHubButton("Kick Self", function() Player:Kick("Disconnected via S4HUB") end)
 
 createHubButton("Taunt", function()
-    local TextChatService = game:GetService("TextChatService")
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-        local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
-        if channel then channel:SendAsync("S4DUELS") end
+    local tcs = game:GetService("TextChatService")
+    if tcs.ChatVersion == Enum.ChatVersion.TextChatService then
+        local c = tcs.TextChannels:FindFirstChild("RBXGeneral")
+        if c then c:SendAsync("S4DUELS") end
     else
-        local sayMessageEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
-        if sayMessageEvent and sayMessageEvent:FindFirstChild("SayMessageRequest") then
-            sayMessageEvent.SayMessageRequest:FireServer("S4DUELS", "All")
+        local e = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+        if e and e:FindFirstChild("SayMessageRequest") then e.SayMessageRequest:FireServer("S4DUELS", "All") end
+    end
+end)
+
+-- UNWALK Logic
+createHubButton("Unwalk", function()
+    local char = Player.Character
+    if char then
+        local animScript = char:FindFirstChild("Animate")
+        if animScript then animScript.Disabled = true end
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then
+            for _, track in pairs(hum:GetPlayingAnimationTracks()) do track:Stop() end
         end
     end
 end)
 
-for i = 1, 2 do createHubButton("s4loading", function() end) end
+for i = 1, 1 do createHubButton("s4loading", function() end) end
 
--- === INTERACTIONS ===
+-- === FINALIZATION ===
+loadConfig()
 lockBtn.MouseButton1Click:Connect(function()
     guiLocked = not guiLocked
     lockBtn.Text = guiLocked and "LOCKED" or "LOCK GUI"
@@ -156,7 +185,6 @@ end)
 toggleHub.MouseButton1Click:Connect(function() hubFrame.Visible = not hubFrame.Visible end)
 closeHub.MouseButton1Click:Connect(function() hubFrame.Visible = false end)
 
--- Drag Logic
 local function drag(f)
     local d, st, sp
     f.InputBegan:Connect(function(i) if not guiLocked and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then d = true; st = i.Position; sp = f.Position end end)
