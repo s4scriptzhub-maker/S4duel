@@ -9,22 +9,20 @@ local playerGui = Player:WaitForChild("PlayerGui")
 local ConfigFile = "S4DUELS_Config.json"
 
 -- === SETTINGS STORAGE ===
-local SavedSettings = {
-    Toggles = {},
-}
+local SavedSettings = { Toggles = {} }
+local ActiveToggles = {} 
 
 -- === PREMIUM COLORS ===
 local SHINY_PURPLE = Color3.fromRGB(210, 80, 255)
 local NEON_BLUE = Color3.fromRGB(0, 220, 255)
+local ACTIVE_GREEN = Color3.fromRGB(0, 255, 150)
 local BG_COLOR = Color3.fromRGB(10, 10, 15)
 
 local guiLocked = false
 
 -- === UTILITY FUNCTIONS ===
 local function saveConfig()
-    if writefile then
-        writefile(ConfigFile, HttpService:JSONEncode(SavedSettings))
-    end
+    if writefile then writefile(ConfigFile, HttpService:JSONEncode(SavedSettings)) end
 end
 
 local function loadConfig()
@@ -32,24 +30,6 @@ local function loadConfig()
         local success, data = pcall(function() return HttpService:JSONDecode(readfile(ConfigFile)) end)
         if success then SavedSettings = data end
     end
-end
-
-local function rejoinServer()
-    TeleportService:Teleport(game.PlaceId, Player)
-end
-
-local function serverHop()
-    local api = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-    local success, result = pcall(function() return HttpService:JSONDecode(game:HttpGet(api)) end)
-    if success and result.data then
-        for _, server in pairs(result.data) do
-            if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, Player)
-                return
-            end
-        end
-    end
-    rejoinServer()
 end
 
 -- === UI BUILDER ===
@@ -114,76 +94,104 @@ local hubTitle = Instance.new("TextLabel", hubFrame)
 hubTitle.Size = UDim2.new(1, 0, 0, 60); hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1,1,1); hubTitle.Font = "ArialBold"; hubTitle.TextSize = 28; hubTitle.BackgroundTransparency = 1
 local hTStroke = Instance.new("UIStroke", hubTitle); hTStroke.Thickness = 2; applyShinyEffect(hTStroke, SHINY_PURPLE, Color3.new(1,1,1))
 
-local closeHub = Instance.new("TextButton", hubFrame)
-closeHub.Size = UDim2.new(0, 24, 0, 24); closeHub.Position = UDim2.new(1, -30, 0, 15); closeHub.Text = "×"; closeHub.BackgroundColor3 = Color3.fromRGB(45,15,20); closeHub.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", closeHub).CornerRadius = UDim.new(1,0)
-
 local scroll = Instance.new("ScrollingFrame", hubFrame)
 scroll.Size = UDim2.new(1, -20, 1, -120); scroll.Position = UDim2.new(0, 10, 0, 75); scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
 Instance.new("UIGridLayout", scroll).CellSize = UDim2.new(0.48, 0, 0, 40)
 
--- Save Button at the Bottom
 local saveBtn = Instance.new("TextButton", hubFrame)
 saveBtn.Size = UDim2.new(0.9, 0, 0, 35); saveBtn.Position = UDim2.new(0.05, 0, 1, -45); saveBtn.Text = "SAVE SETTINGS"; saveBtn.BackgroundColor3 = BG_COLOR; saveBtn.TextColor3 = Color3.new(1,1,1); saveBtn.Font = "GothamBold"
 Instance.new("UICorner", saveBtn)
 local sbs = Instance.new("UIStroke", saveBtn); sbs.Thickness = 1.5; applyShinyEffect(sbs, NEON_BLUE, Color3.new(1,1,1))
 saveBtn.MouseButton1Click:Connect(saveConfig)
 
--- === HUB BUTTON BUILDER ===
-local function createHubButton(text, func)
+-- === HUB BUTTON BUILDER WITH TOGGLE LOGIC ===
+local function createHubButton(text, isToggle, func)
     local b = Instance.new("TextButton", scroll)
     b.Text = text; b.BackgroundColor3 = BG_COLOR; b.BackgroundTransparency = 0.6; b.TextColor3 = Color3.new(1,1,1); b.Font = "GothamBold"; b.TextSize = 12
     Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
-    local bs = Instance.new("UIStroke", b); bs.Thickness = 1.2; applyShinyEffect(bs, SHINY_PURPLE, Color3.new(1,1,1))
-    b.MouseButton1Click:Connect(function() 
-        func() 
-        if text ~= "Rejoin Server" and text ~= "Server Hop" and text ~= "Kick Self" then
-            SavedSettings.Toggles[text] = true -- Simple tracking for persistence
+    local bs = Instance.new("UIStroke", b); bs.Thickness = 1.2
+    local currentEffect = applyShinyEffect(bs, SHINY_PURPLE, Color3.new(1,1,1))
+    
+    ActiveToggles[text] = false
+
+    b.MouseButton1Click:Connect(function()
+        if isToggle then
+            ActiveToggles[text] = not ActiveToggles[text]
+            SavedSettings.Toggles[text] = ActiveToggles[text]
+            
+            if ActiveToggles[text] then
+                currentEffect.Enabled = false 
+                bs.Color = ACTIVE_GREEN -- Signal Active
+            else
+                currentEffect.Enabled = true 
+                bs.Color = Color3.new(1,1,1)
+            end
+            func(ActiveToggles[text])
+        else
+            -- One-time action flash logic
+            task.spawn(function()
+                local oldColor = bs.Color
+                bs.Color = Color3.new(1,1,1)
+                task.wait(0.2)
+                bs.Color = oldColor
+            end)
+            func()
         end
     end)
     return b
 end
 
--- Functional Buttons
-createHubButton("Rejoin Server", rejoinServer)
-createHubButton("Server Hop", serverHop)
-createHubButton("Kick Self", function() Player:Kick("Disconnected via S4HUB") end)
+-- --- BUTTON ACTIONS ---
 
-createHubButton("Taunt", function()
-    local tcs = game:GetService("TextChatService")
-    if tcs.ChatVersion == Enum.ChatVersion.TextChatService then
-        local c = tcs.TextChannels:FindFirstChild("RBXGeneral")
-        if c then c:SendAsync("S4DUELS") end
-    else
-        local e = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
-        if e and e:FindFirstChild("SayMessageRequest") then e.SayMessageRequest:FireServer("S4DUELS", "All") end
+createHubButton("Rejoin Server", false, function() TeleportService:Teleport(game.PlaceId, Player) end)
+createHubButton("Server Hop", false, function() 
+    local success, result = pcall(function() return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")) end)
+    if success and result.data then
+        for _, s in pairs(result.data) do if s.playing < s.maxPlayers and s.id ~= game.JobId then TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, Player) return end end
     end
 end)
 
--- UNWALK Logic
-createHubButton("Unwalk", function()
-    local char = Player.Character
-    if char then
-        local animScript = char:FindFirstChild("Animate")
-        if animScript then animScript.Disabled = true end
-        local hum = char:FindFirstChild("Humanoid")
-        if hum then
-            for _, track in pairs(hum:GetPlayingAnimationTracks()) do track:Stop() end
+createHubButton("Taunt", true, function(state)
+    if state then
+        local tcs = game:GetService("TextChatService")
+        if tcs.ChatVersion == Enum.ChatVersion.TextChatService then
+            local c = tcs.TextChannels:FindFirstChild("RBXGeneral")
+            if c then c:SendAsync("S4DUELS") end
+        else
+            local e = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+            if e and e:FindFirstChild("SayMessageRequest") then e.SayMessageRequest:FireServer("S4DUELS", "All") end
         end
     end
 end)
 
-for i = 1, 1 do createHubButton("s4loading", function() end) end
+-- UPDATED UNWALK: Now properly restores animations
+createHubButton("Unwalk", true, function(state)
+    local char = Player.Character or Player.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid")
+    local anim = char:FindFirstChild("Animate")
+
+    if state then
+        -- Disable animations
+        if anim then anim.Disabled = true end
+        for _, track in pairs(hum:GetPlayingAnimationTracks()) do track:Stop() end
+    else
+        -- Re-enable animations
+        if anim then anim.Disabled = false end
+        -- Force re-sync by jumping or state change
+        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+for i = 1, 1 do createHubButton("s4loading", false, function() end) end
 
 -- === FINALIZATION ===
 loadConfig()
+toggleHub.MouseButton1Click:Connect(function() hubFrame.Visible = not hubFrame.Visible end)
 lockBtn.MouseButton1Click:Connect(function()
     guiLocked = not guiLocked
     lockBtn.Text = guiLocked and "LOCKED" or "LOCK GUI"
     lockStroke.Color = guiLocked and Color3.fromRGB(255, 50, 50) or NEON_BLUE
 end)
-
-toggleHub.MouseButton1Click:Connect(function() hubFrame.Visible = not hubFrame.Visible end)
-closeHub.MouseButton1Click:Connect(function() hubFrame.Visible = false end)
 
 local function drag(f)
     local d, st, sp
