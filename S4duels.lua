@@ -488,4 +488,57 @@ createSyncedButton("Unwalk", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.5, 0), ap
 -- Apply interaction engine to main UI frames
 makeInteractive(lockFrame, lockBtn, true, function()
     guiLocked = not guiLocked
-    lock
+    lockBtn.Text = guiLocked and "LOCKED" or "LOCK GUI"
+    lockStroke.Color = guiLocked and Color3.fromRGB(255, 50, 50) or NEON_BLUE
+end)
+
+makeInteractive(returnFrame, returnBtn, true, function() activateDuelFuckerMode(false) end)
+makeInteractive(mainHeader, headerTitle, true, nil)
+makeInteractive(openSettingsBtn, openSettingsBtn, false, function() hubMenu.Visible = not hubMenu.Visible end)
+makeInteractive(hubMenu, hubTitle, true, nil)
+makeInteractive(closeHubBtn, closeHubBtn, false, function() hubMenu.Visible = false end)
+makeInteractive(globalSaveBtn, globalSaveBtn, false, saveConfigs)
+makeInteractive(speedMenu, speedTitleLabel, true, nil)
+makeInteractive(confirmSpeedBtn, confirmSpeedBtn, false, function() saveConfigs(); speedMenu.Visible = false end)
+
+-- Speed Slider Action
+sliderTrigger.MouseButton1Down:Connect(function()
+    local moveConnection
+    moveConnection = UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            local relX = math.clamp((input.Position.X - sliderTrack.AbsolutePosition.X) / sliderTrack.AbsoluteSize.X, 0, 1)
+            BatSettings.Speed = math.floor(relX * 70)
+            sliderFill.Size = UDim2.new(relX, 0, 1, 0)
+            speedTitleLabel.Text = "TRACKING SPEED: " .. BatSettings.Speed
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if moveConnection then moveConnection:Disconnect() end
+        end
+    end)
+end)
+
+-- ==========================================
+-- ========== MASTER RUNTIME LOOP ===========
+-- ==========================================
+RunService.RenderStepped:Connect(function()
+    statsLabel.Text = string.format("FPS: %d | PING: %dms", math.floor(1 / RunService.RenderStepped:Wait()), math.floor(Player:GetNetworkPing() * 1000))
+    runESP()
+    runBatFuckerPhysics()
+    
+    -- FIXED INFINITE JUMP: Works perfectly for PC and Mobile touches without resetting
+    if States["Inf Jump"] and Player.Character then
+        local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
+        local hum = Player.Character:FindFirstChild("Humanoid")
+        if hrp and hum then
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) or hum.Jump then
+                -- Applies direct upward momentum
+                hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 50, hrp.AssemblyLinearVelocity.Z)
+                hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
+            end
+        end
+    end
+end)
+
+loadConfigs()
