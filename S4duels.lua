@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ FULLY OPTIMIZED, NO COMPRESSION, FLAWLESS DRAG & PHYSICS ]] --
+-- [[ FLAWLESS EXECUTION, ANTI-CRASH, PERFECT DRAG, SMART BOOSTER ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,18 +8,43 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TextChatService = game:GetService("TextChatService")
+local StarterGui = game:GetService("StarterGui")
 
+-- Safely wait for the player to exist to prevent Infinite Yield crashes
 local Player = Players.LocalPlayer
-local playerGui = Player:WaitForChild("PlayerGui")
+while not Player do
+    Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+    Player = Players.LocalPlayer
+end
+
+local playerGui = Player:WaitForChild("PlayerGui", 10)
+
+-- === DESTROY OLD INSTANCES TO PREVENT OVERLAPPING ===
+local guiName = "S4DUELS_ULTIMATE_HUD"
+pcall(function()
+    for _, v in pairs(game:GetService("CoreGui"):GetChildren()) do
+        if v.Name == guiName then v:Destroy() end
+    end
+end)
+if playerGui then
+    for _, v in pairs(playerGui:GetChildren()) do
+        if v.Name == guiName then v:Destroy() end
+    end
+end
 
 -- === FILE SYSTEM FOR SAVING ===
 local MainConfigFile = "S4_ELITE_CONFIG.json"
 local SpeedConfigFile = "S4_ELITE_SPEED.json"
 
 -- === GLOBAL STATE MANAGEMENT ===
-local BatSettings = { Speed = 56 }
+local AdvancedSettings = { 
+    BatSpeed = 56, 
+    WalkSpeed = 56, 
+    CarrySpeed = 29 
+}
 local States = {
     ["Bat Fucker"] = false,
+    ["S4BOOSTER"] = false,
     ["ESP"] = false,
     ["Inf Jump"] = false,
     ["Unwalk"] = false,
@@ -27,7 +52,7 @@ local States = {
 }
 
 local guiLocked = false
-local ButtonRegistry = {} -- Stores UI elements to keep them synced across modes
+local ButtonRegistry = {}
 
 -- === THEME COLORS ===
 local SHINY_PURPLE = Color3.fromRGB(210, 80, 255)
@@ -36,41 +61,57 @@ local ACTIVE_GREEN = Color3.fromRGB(0, 255, 150)
 local BG_COLOR = Color3.fromRGB(10, 10, 15)
 local ESP_COLOR = Color3.fromRGB(255, 0, 0)
 
--- === DATA PERSISTENCE ===
+-- === EXECUTOR-SAFE DATA PERSISTENCE ===
 local function saveConfigs()
-    if writefile then
-        pcall(function()
+    pcall(function()
+        if type(writefile) == "function" then
             writefile(MainConfigFile, HttpService:JSONEncode(States))
-            writefile(SpeedConfigFile, HttpService:JSONEncode(BatSettings))
-        end)
-    end
+            writefile(SpeedConfigFile, HttpService:JSONEncode(AdvancedSettings))
+        end
+    end)
 end
 
 local function loadConfigs()
-    if isfile and isfile(MainConfigFile) then
-        pcall(function() 
-            local data = HttpService:JSONDecode(readfile(MainConfigFile))
-            for k, v in pairs(data) do States[k] = v end
-        end)
-    end
-    if isfile and isfile(SpeedConfigFile) then
-        pcall(function() 
-            local data = HttpService:JSONDecode(readfile(SpeedConfigFile))
-            if data.Speed then BatSettings.Speed = data.Speed end
-        end)
-    end
+    pcall(function()
+        if type(isfile) == "function" and type(readfile) == "function" then
+            if isfile(MainConfigFile) then
+                local data = HttpService:JSONDecode(readfile(MainConfigFile))
+                for k, v in pairs(data) do States[k] = v end
+            end
+            if isfile(SpeedConfigFile) then
+                local data = HttpService:JSONDecode(readfile(SpeedConfigFile))
+                if data.BatSpeed then AdvancedSettings.BatSpeed = data.BatSpeed end
+                if data.WalkSpeed then AdvancedSettings.WalkSpeed = data.WalkSpeed end
+                if data.CarrySpeed then AdvancedSettings.CarrySpeed = data.CarrySpeed end
+            end
+        end
+    end)
 end
 
 -- === UI EFFECTS & CREATION ===
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "S4DUELS_ULTIMATE_HUD"
+screenGui.Name = guiName
 screenGui.ResetOnSpawn = false
-pcall(function()
-    if gethui then
+
+-- Executor-Safe GUI Parenting
+local successParenting = pcall(function()
+    if type(gethui) == "function" then
         screenGui.Parent = gethui()
-    else
-        screenGui.Parent = playerGui
+    elseif game:GetService("CoreGui"):FindFirstChild("RobloxGui") then
+        screenGui.Parent = game:GetService("CoreGui")
     end
+end)
+if not screenGui.Parent and playerGui then
+    screenGui.Parent = playerGui
+end
+
+-- Startup Notification
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "S4DUELS",
+        Text = "Elite Brainrot Loaded Successfully!",
+        Duration = 5
+    })
 end)
 
 local function applyShinyGradient(parent, color1, color2)
@@ -94,48 +135,42 @@ end
 
 -- === FLAWLESS TOUCH, DRAG, AND CLICK ENGINE ===
 local function makeInteractive(frame, trigger, isDraggable, onClick)
-    local dragInput = nil
     local dragging = false
     local hasMoved = false
-    local dragStart, startPos
+    local dragStart, startPos, dragInput
 
     trigger.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            -- Ignore secondary touches to prevent glitching while walking
-            if dragInput then return end 
+            if guiLocked and isDraggable then return end -- Enforce GUI Lock
             
-            dragInput = input
-            dragging = isDraggable and not guiLocked
+            dragging = isDraggable
             hasMoved = false
             dragStart = input.Position
             startPos = frame.Position
-            
-            local connection
-            connection = input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                    if dragInput == input then
-                        dragInput = nil
-                        -- Only execute click if it wasn't dragged
-                        if not hasMoved and onClick then
-                            onClick()
-                        end
-                    end
-                    connection:Disconnect()
-                end
-            end)
+        end
+    end)
+
+    trigger.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
         end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput then
+        if dragging and input == dragInput then
             local delta = input.Position - dragStart
-            -- If finger moved more than 5 pixels, it's a drag, NOT a click
             if delta.Magnitude > 5 then
-                hasMoved = true
+                hasMoved = true -- Confirms the user is dragging, not clicking
             end
-            if dragging then
-                frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    trigger.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            if not hasMoved and onClick then
+                onClick()
             end
         end
     end)
@@ -169,7 +204,7 @@ local lockBtn = Instance.new("TextButton", lockFrame)
 lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1
 lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1, 1, 1); lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 12
 
--- [2] S4HUB TOP-LEFT RETURN BUTTON (Visible in duelfucker Mode)
+-- [2] TOP-LEFT RETURN BUTTON (Visible in duelfucker Mode)
 local returnFrame, returnStroke = createStyledFrame("ReturnHUB", UDim2.new(0, 120, 0, 40), UDim2.new(0, 15, 0, 15), NEON_BLUE)
 local returnBtn = Instance.new("TextButton", returnFrame)
 returnBtn.Size = UDim2.new(1, 0, 1, 0); returnBtn.BackgroundTransparency = 1
@@ -209,7 +244,7 @@ Instance.new("UICorner", closeHubBtn).CornerRadius = UDim.new(0, 6)
 
 local scrollFrame = Instance.new("ScrollingFrame", hubMenu)
 scrollFrame.Size = UDim2.new(1, -30, 1, -170); scrollFrame.Position = UDim2.new(0, 15, 0, 80)
-scrollFrame.BackgroundTransparency = 1; scrollFrame.CanvasSize = UDim2.new(0, 0, 1.5, 0); scrollFrame.ScrollBarThickness = 4; scrollFrame.ScrollBarImageColor3 = SHINY_PURPLE
+scrollFrame.BackgroundTransparency = 1; scrollFrame.CanvasSize = UDim2.new(0, 0, 2, 0); scrollFrame.ScrollBarThickness = 4; scrollFrame.ScrollBarImageColor3 = SHINY_PURPLE
 local gridLayout = Instance.new("UIGridLayout", scrollFrame)
 gridLayout.CellSize = UDim2.new(0.48, 0, 0, 48); gridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
 Instance.new("UIPadding", scrollFrame).PaddingLeft = UDim.new(0, 2)
@@ -221,19 +256,19 @@ Instance.new("UICorner", globalSaveBtn).CornerRadius = UDim.new(0, 6)
 local gsbStroke = Instance.new("UIStroke", globalSaveBtn); gsbStroke.Thickness = 1.5; applyShinyGradient(gsbStroke, NEON_BLUE, Color3.new(1,1,1))
 
 -- [5] BAT FUCKER SPEED SLIDER MENU
-local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 250, 0, 150), UDim2.new(0.5, 240, 0.5, -75), NEON_BLUE)
+local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 250, 0, 150), UDim2.new(0.5, 240, 0.5, -180), NEON_BLUE)
 speedMenu.Visible = false; speedMenu.ZIndex = 50
 
 local speedTitleLabel = Instance.new("TextLabel", speedMenu)
 speedTitleLabel.Size = UDim2.new(1, 0, 0, 40); speedTitleLabel.Position = UDim2.new(0, 0, 0, 10)
-speedTitleLabel.Text = "TRACKING SPEED: " .. BatSettings.Speed; speedTitleLabel.TextColor3 = Color3.new(1, 1, 1); speedTitleLabel.Font = Enum.Font.GothamBold; speedTitleLabel.TextSize = 14; speedTitleLabel.BackgroundTransparency = 1; speedTitleLabel.ZIndex = 51
+speedTitleLabel.Text = "TRACKING SPEED: " .. AdvancedSettings.BatSpeed; speedTitleLabel.TextColor3 = Color3.new(1, 1, 1); speedTitleLabel.Font = Enum.Font.GothamBold; speedTitleLabel.TextSize = 14; speedTitleLabel.BackgroundTransparency = 1; speedTitleLabel.ZIndex = 51
 
 local sliderTrack = Instance.new("Frame", speedMenu)
 sliderTrack.Size = UDim2.new(0.8, 0, 0, 14); sliderTrack.Position = UDim2.new(0.1, 0, 0.45, 0)
 sliderTrack.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1); sliderTrack.ZIndex = 51; Instance.new("UICorner", sliderTrack)
 
 local sliderFill = Instance.new("Frame", sliderTrack)
-sliderFill.Size = UDim2.new(BatSettings.Speed / 70, 0, 1, 0)
+sliderFill.Size = UDim2.new(AdvancedSettings.BatSpeed / 70, 0, 1, 0)
 sliderFill.BackgroundColor3 = NEON_BLUE; sliderFill.ZIndex = 52; Instance.new("UICorner", sliderFill)
 
 local sliderTrigger = Instance.new("TextButton", sliderTrack)
@@ -241,11 +276,57 @@ sliderTrigger.Size = UDim2.new(1, 0, 1, 0); sliderTrigger.BackgroundTransparency
 
 local confirmSpeedBtn = Instance.new("TextButton", speedMenu)
 confirmSpeedBtn.Size = UDim2.new(0.8, 0, 0, 35); confirmSpeedBtn.Position = UDim2.new(0.1, 0, 0.75, 0)
-confirmSpeedBtn.Text = "CONFIRM SPEED"; confirmSpeedBtn.BackgroundColor3 = BG_COLOR; confirmSpeedBtn.TextColor3 = Color3.new(1, 1, 1); confirmSpeedBtn.Font = Enum.Font.GothamBold; confirmSpeedBtn.TextSize = 12; confirmSpeedBtn.ZIndex = 51
+confirmSpeedBtn.Text = "SAVE SPEED"; confirmSpeedBtn.BackgroundColor3 = BG_COLOR; confirmSpeedBtn.TextColor3 = Color3.new(1, 1, 1); confirmSpeedBtn.Font = Enum.Font.GothamBold; confirmSpeedBtn.TextSize = 12; confirmSpeedBtn.ZIndex = 51
 Instance.new("UICorner", confirmSpeedBtn)
 local csbStroke = Instance.new("UIStroke", confirmSpeedBtn); csbStroke.Thickness = 1.2; csbStroke.Color = NEON_BLUE
 
--- [6] duelfucker HUD (Container for draggable buttons)
+-- [6] S4BOOSTER SPEED SETTINGS MENU
+local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 260, 0, 220), UDim2.new(0.5, 240, 0.5, 0), NEON_BLUE)
+boosterMenu.Visible = false; boosterMenu.ZIndex = 50
+
+local boosterTitle = Instance.new("TextLabel", boosterMenu)
+boosterTitle.Size = UDim2.new(1, 0, 0, 35); boosterTitle.Position = UDim2.new(0, 0, 0, 5)
+boosterTitle.Text = "S4BOOSTER CONFIG"; boosterTitle.TextColor3 = Color3.new(1, 1, 1); boosterTitle.Font = Enum.Font.GothamBold; boosterTitle.TextSize = 16; boosterTitle.BackgroundTransparency = 1; boosterTitle.ZIndex = 51
+
+-- Walk Speed Slider
+local wSpeedLabel = Instance.new("TextLabel", boosterMenu)
+wSpeedLabel.Size = UDim2.new(1, 0, 0, 20); wSpeedLabel.Position = UDim2.new(0, 0, 0, 45)
+wSpeedLabel.Text = "Walk Speed (0-70): " .. AdvancedSettings.WalkSpeed; wSpeedLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8); wSpeedLabel.Font = Enum.Font.GothamSemibold; wSpeedLabel.TextSize = 12; wSpeedLabel.BackgroundTransparency = 1; wSpeedLabel.ZIndex = 51
+
+local wTrack = Instance.new("Frame", boosterMenu)
+wTrack.Size = UDim2.new(0.8, 0, 0, 10); wTrack.Position = UDim2.new(0.1, 0, 0.33, 0)
+wTrack.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1); wTrack.ZIndex = 51; Instance.new("UICorner", wTrack)
+
+local wFill = Instance.new("Frame", wTrack)
+wFill.Size = UDim2.new(AdvancedSettings.WalkSpeed / 70, 0, 1, 0)
+wFill.BackgroundColor3 = NEON_BLUE; wFill.ZIndex = 52; Instance.new("UICorner", wFill)
+
+local wTrigger = Instance.new("TextButton", wTrack)
+wTrigger.Size = UDim2.new(1, 0, 1, 0); wTrigger.BackgroundTransparency = 1; wTrigger.Text = ""; wTrigger.ZIndex = 53
+
+-- Carry Speed Slider
+local cSpeedLabel = Instance.new("TextLabel", boosterMenu)
+cSpeedLabel.Size = UDim2.new(1, 0, 0, 20); cSpeedLabel.Position = UDim2.new(0, 0, 0, 95)
+cSpeedLabel.Text = "Carry Speed (0-31): " .. AdvancedSettings.CarrySpeed; cSpeedLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8); cSpeedLabel.Font = Enum.Font.GothamSemibold; cSpeedLabel.TextSize = 12; cSpeedLabel.BackgroundTransparency = 1; cSpeedLabel.ZIndex = 51
+
+local cTrack = Instance.new("Frame", boosterMenu)
+cTrack.Size = UDim2.new(0.8, 0, 0, 10); cTrack.Position = UDim2.new(0.1, 0, 0.55, 0)
+cTrack.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1); cTrack.ZIndex = 51; Instance.new("UICorner", cTrack)
+
+local cFill = Instance.new("Frame", cTrack)
+cFill.Size = UDim2.new(AdvancedSettings.CarrySpeed / 31, 0, 1, 0)
+cFill.BackgroundColor3 = NEON_BLUE; cFill.ZIndex = 52; Instance.new("UICorner", cFill)
+
+local cTrigger = Instance.new("TextButton", cTrack)
+cTrigger.Size = UDim2.new(1, 0, 1, 0); cTrigger.BackgroundTransparency = 1; cTrigger.Text = ""; cTrigger.ZIndex = 53
+
+local confirmBoosterBtn = Instance.new("TextButton", boosterMenu)
+confirmBoosterBtn.Size = UDim2.new(0.8, 0, 0, 35); confirmBoosterBtn.Position = UDim2.new(0.1, 0, 0.78, 0)
+confirmBoosterBtn.Text = "SAVE SPEED"; confirmBoosterBtn.BackgroundColor3 = BG_COLOR; confirmBoosterBtn.TextColor3 = Color3.new(1, 1, 1); confirmBoosterBtn.Font = Enum.Font.GothamBold; confirmBoosterBtn.TextSize = 12; confirmBoosterBtn.ZIndex = 51
+Instance.new("UICorner", confirmBoosterBtn)
+local cbbStroke = Instance.new("UIStroke", confirmBoosterBtn); cbbStroke.Thickness = 1.2; cbbStroke.Color = NEON_BLUE
+
+-- [7] duelfucker HUD (Container for draggable buttons)
 local duelFuckerHUD = Instance.new("Frame", screenGui)
 duelFuckerHUD.Size = UDim2.new(1, 0, 1, 0); duelFuckerHUD.BackgroundTransparency = 1; duelFuckerHUD.Visible = false
 
@@ -283,14 +364,12 @@ local function createSyncedButton(text, isToggle, parent, position, callback)
     local isDraggable = false
 
     if parent == scrollFrame then
-        -- Settings Menu layout (Uses UI Grid Layout, strictly not draggable)
         frame = Instance.new("Frame", parent)
         frame.BackgroundColor3 = BG_COLOR; frame.BackgroundTransparency = 0.35; frame.BorderSizePixel = 0
         Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
         stroke = Instance.new("UIStroke", frame); stroke.Thickness = 1.5; stroke.Color = Color3.new(1,1,1)
         applyShinyGradient(stroke, SHINY_PURPLE, Color3.new(1, 1, 1))
     else
-        -- duelfucker Tactical layout (Absolute positioning, completely draggable)
         frame, stroke = createStyledFrame(text.."_duelfucker", UDim2.new(0, 145, 0, 48), position, SHINY_PURPLE, parent)
         isDraggable = true
     end
@@ -299,7 +378,21 @@ local function createSyncedButton(text, isToggle, parent, position, callback)
     actionBtn.Size = UDim2.new(1, 0, 1, 0); actionBtn.BackgroundTransparency = 1
     actionBtn.Text = text; actionBtn.TextColor3 = Color3.new(1, 1, 1); actionBtn.Font = Enum.Font.GothamBold; actionBtn.TextSize = 13
 
-    -- Interactive Binding (Handles Click & Drag securely)
+    -- Inject Gear Icons for Bat Fucker & S4BOOSTER
+    if text == "Bat Fucker" then
+        local gearIcon = Instance.new("TextButton", frame)
+        gearIcon.Size = UDim2.new(0, 26, 0, 26); gearIcon.Position = UDim2.new(1, -30, 0.5, -13)
+        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 16; gearIcon.ZIndex = 5
+        makeInteractive(gearIcon, gearIcon, false, function() speedMenu.Visible = not speedMenu.Visible end)
+    end
+    
+    if text == "S4BOOSTER" then
+        local gearIcon = Instance.new("TextButton", frame)
+        gearIcon.Size = UDim2.new(0, 26, 0, 26); gearIcon.Position = UDim2.new(1, -30, 0.5, -13)
+        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 16; gearIcon.ZIndex = 5
+        makeInteractive(gearIcon, gearIcon, false, function() boosterMenu.Visible = not boosterMenu.Visible end)
+    end
+
     makeInteractive(frame, actionBtn, isDraggable, function()
         if isToggle then
             local newState = toggleFeature(text)
@@ -313,13 +406,6 @@ local function createSyncedButton(text, isToggle, parent, position, callback)
             if callback then callback() end
         end
     end)
-
-    if text == "Bat Fucker" then
-        local gearIcon = Instance.new("TextButton", frame)
-        gearIcon.Size = UDim2.new(0, 26, 0, 26); gearIcon.Position = UDim2.new(1, -30, 0.5, -13)
-        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 16; gearIcon.ZIndex = 5
-        makeInteractive(gearIcon, gearIcon, false, function() speedMenu.Visible = not speedMenu.Visible end)
-    end
 
     if not ButtonRegistry[text] then ButtonRegistry[text] = {} end
     table.insert(ButtonRegistry[text], stroke)
@@ -377,7 +463,7 @@ local function runBatFuckerPhysics()
 
         hum.PlatformStand = true 
         local direction = (targetHrp.Position - hrp.Position).Unit
-        batVelocity.Velocity = direction * BatSettings.Speed
+        batVelocity.Velocity = direction * AdvancedSettings.BatSpeed
         batGyro.CFrame = CFrame.lookAt(hrp.Position, targetHrp.Position)
 
         for _, part in pairs(char:GetDescendants()) do
@@ -444,6 +530,23 @@ local function applyUnwalk(state)
     end
 end
 
+local function handleBoosterToggle(state)
+    -- If toggled off, reset speed safely
+    if not state and Player.Character and Player.Character:FindFirstChild("Humanoid") then
+        Player.Character.Humanoid.WalkSpeed = 16
+    end
+end
+
+-- === MOBILE & PC SAFE INFINITE JUMP ===
+UserInputService.JumpRequest:Connect(function()
+    if States["Inf Jump"] and Player.Character then
+        local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
+        end
+    end
+end)
+
 -- ==========================================
 -- ========== MENU & BUTTON POPULATION ======
 -- ==========================================
@@ -459,6 +562,7 @@ end
 -- [POPULATE S4HUB SETTINGS]
 createSyncedButton("duelfucker", true, scrollFrame, nil, activateDuelFuckerMode)
 createSyncedButton("Bat Fucker", true, scrollFrame, nil, nil)
+createSyncedButton("S4BOOSTER", true, scrollFrame, nil, handleBoosterToggle)
 createSyncedButton("ESP", true, scrollFrame, nil, nil)
 createSyncedButton("Inf Jump", true, scrollFrame, nil, nil)
 createSyncedButton("Unwalk", true, scrollFrame, nil, applyUnwalk)
@@ -476,16 +580,16 @@ createSyncedButton("Server Hop", false, scrollFrame, nil, function() TeleportSer
 createSyncedButton("Kick Self", false, scrollFrame, nil, function() Player:Kick("S4DUELS Manual Disconnect") end)
 
 -- [POPULATE duelfucker HUD]
-createSyncedButton("Bat Fucker", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.4, 0), nil)
+createSyncedButton("Bat Fucker", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.3, 0), nil)
+createSyncedButton("S4BOOSTER", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.4, 0), handleBoosterToggle)
 createSyncedButton("ESP", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.5, 0), nil)
-createSyncedButton("Inf Jump", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.4, 0), nil)
-createSyncedButton("Unwalk", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.5, 0), applyUnwalk)
+createSyncedButton("Inf Jump", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.3, 0), nil)
+createSyncedButton("Unwalk", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.4, 0), applyUnwalk)
 
 -- ==========================================
--- ========== BINDINGS & DRAG SETUP =========
+-- ========== BINDINGS & SETUP ==============
 -- ==========================================
 
--- Apply interaction engine to main UI frames
 makeInteractive(lockFrame, lockBtn, true, function()
     guiLocked = not guiLocked
     lockBtn.Text = guiLocked and "LOCKED" or "LOCK GUI"
@@ -498,18 +602,59 @@ makeInteractive(openSettingsBtn, openSettingsBtn, false, function() hubMenu.Visi
 makeInteractive(hubMenu, hubTitle, true, nil)
 makeInteractive(closeHubBtn, closeHubBtn, false, function() hubMenu.Visible = false end)
 makeInteractive(globalSaveBtn, globalSaveBtn, false, saveConfigs)
+
+-- Menu Drags
 makeInteractive(speedMenu, speedTitleLabel, true, nil)
 makeInteractive(confirmSpeedBtn, confirmSpeedBtn, false, function() saveConfigs(); speedMenu.Visible = false end)
 
--- Speed Slider Action
+makeInteractive(boosterMenu, boosterTitle, true, nil)
+makeInteractive(confirmBoosterBtn, confirmBoosterBtn, false, function() saveConfigs(); boosterMenu.Visible = false end)
+
+-- Bat Speed Slider Drag Action
 sliderTrigger.MouseButton1Down:Connect(function()
     local moveConnection
     moveConnection = UserInputService.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             local relX = math.clamp((input.Position.X - sliderTrack.AbsolutePosition.X) / sliderTrack.AbsoluteSize.X, 0, 1)
-            BatSettings.Speed = math.floor(relX * 70)
+            AdvancedSettings.BatSpeed = math.floor(relX * 70)
             sliderFill.Size = UDim2.new(relX, 0, 1, 0)
-            speedTitleLabel.Text = "TRACKING SPEED: " .. BatSettings.Speed
+            speedTitleLabel.Text = "TRACKING SPEED: " .. AdvancedSettings.BatSpeed
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if moveConnection then moveConnection:Disconnect() end
+        end
+    end)
+end)
+
+-- Walk Speed Slider Drag Action
+wTrigger.MouseButton1Down:Connect(function()
+    local moveConnection
+    moveConnection = UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            local relX = math.clamp((input.Position.X - wTrack.AbsolutePosition.X) / wTrack.AbsoluteSize.X, 0, 1)
+            AdvancedSettings.WalkSpeed = math.floor(relX * 70)
+            wFill.Size = UDim2.new(relX, 0, 1, 0)
+            wSpeedLabel.Text = "Walk Speed (0-70): " .. AdvancedSettings.WalkSpeed
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if moveConnection then moveConnection:Disconnect() end
+        end
+    end)
+end)
+
+-- Carry Speed Slider Drag Action
+cTrigger.MouseButton1Down:Connect(function()
+    local moveConnection
+    moveConnection = UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            local relX = math.clamp((input.Position.X - cTrack.AbsolutePosition.X) / cTrack.AbsoluteSize.X, 0, 1)
+            AdvancedSettings.CarrySpeed = math.floor(relX * 31)
+            cFill.Size = UDim2.new(relX, 0, 1, 0)
+            cSpeedLabel.Text = "Carry Speed (0-31): " .. AdvancedSettings.CarrySpeed
         end
     end)
     UserInputService.InputEnded:Connect(function(input)
@@ -527,18 +672,17 @@ RunService.RenderStepped:Connect(function()
     runESP()
     runBatFuckerPhysics()
     
-    -- FIXED INFINITE JUMP: Works perfectly for PC and Mobile touches without resetting
-    if States["Inf Jump"] and Player.Character then
-        local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
-        local hum = Player.Character:FindFirstChild("Humanoid")
-        if hrp and hum then
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) or hum.Jump then
-                -- Applies direct upward momentum
-                hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 50, hrp.AssemblyLinearVelocity.Z)
-                hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
-            end
+    -- S4BOOSTER LOGIC
+    if States["S4BOOSTER"] and Player.Character and Player.Character:FindFirstChild("Humanoid") then
+        -- Checking for any Tool equipped inside Character
+        local isCarrying = Player.Character:FindFirstChildOfClass("Tool")
+        if isCarrying then
+            Player.Character.Humanoid.WalkSpeed = AdvancedSettings.CarrySpeed
+        else
+            Player.Character.Humanoid.WalkSpeed = AdvancedSettings.WalkSpeed
         end
     end
 end)
 
+-- Execute Initialization
 loadConfigs()
