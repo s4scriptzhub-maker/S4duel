@@ -1,5 +1,6 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ COMPACT MOBILE GUI, ANTI-TRIP PHYSICS, GUARANTEED AUTO-STEAL ]] --
+-- [[ PREMIUM UI, STABLE PHYSICS, NATIVE 22s CARRY LOGIC ]] --
+-- [[ DEVELOPED FOR PREMIUM DISTRIBUTION ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,7 +9,9 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TextChatService = game:GetService("TextChatService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
 
 -- Safely wait for the player to exist to prevent Infinite Yield crashes
 local Player = Players.LocalPlayer
@@ -38,12 +41,15 @@ local SpeedConfigFile = "S4_ELITE_SPEED.json"
 
 -- === GLOBAL STATE MANAGEMENT ===
 local AdvancedSettings = { 
-    BatSpeed = 56, 
-    WalkSpeed = 56, 
-    CarrySpeed = 30 -- Max safely set to 32 via sliders
+    BatSpeed = 55, 
+    FlySpeed = 55,
+    FlyCarrySpeed = 11, 
+    WalkSpeed = 55, 
+    CarrySpeed = 29 
 }
 local States = {
     ["Bat Fucker"] = false,
+    ["Fly"] = false,
     ["S4BOOSTER"] = false,
     ["Instant Steal"] = false,
     ["ESP"] = false,
@@ -56,12 +62,19 @@ local guiLocked = false
 local ButtonRegistry = {}
 local FeatureCallbacks = {}
 
--- === PREMIUM THEME COLORS ===
-local SHINY_PURPLE = Color3.fromRGB(180, 100, 255)
-local NEON_BLUE = Color3.fromRGB(0, 200, 255)
-local ACTIVE_GREEN = Color3.fromRGB(50, 255, 150)
-local BG_COLOR = Color3.fromRGB(15, 15, 20)
-local ESP_COLOR = Color3.fromRGB(255, 50, 50)
+-- EVENT-DRIVEN CARRY STATE
+local InternalCarryState = false
+local carryStartTime = 0
+
+-- === PREMIUM LUXURY THEME COLORS ===
+local PRIMARY_ACCENT = Color3.fromRGB(138, 43, 226)   -- Electric Violet
+local SECONDARY_ACCENT = Color3.fromRGB(0, 229, 255)  -- Cyan/Teal Glow
+local ACTIVE_GLOW = Color3.fromRGB(0, 255, 170)       -- Premium Mint Green
+local BG_DEEP = Color3.fromRGB(12, 12, 18)            -- Deep Midnight Glass
+local TEXT_MAIN = Color3.fromRGB(240, 240, 245)
+local ESP_COLOR = Color3.fromRGB(255, 50, 70)
+
+local TWEEN_INFO = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 -- === EXECUTOR-SAFE DATA PERSISTENCE ===
 local function saveConfigs()
@@ -83,6 +96,8 @@ local function loadConfigs()
             if isfile(SpeedConfigFile) then
                 local data = HttpService:JSONDecode(readfile(SpeedConfigFile))
                 if data.BatSpeed then AdvancedSettings.BatSpeed = data.BatSpeed end
+                if data.FlySpeed then AdvancedSettings.FlySpeed = data.FlySpeed end
+                if data.FlyCarrySpeed then AdvancedSettings.FlyCarrySpeed = data.FlyCarrySpeed end
                 if data.WalkSpeed then AdvancedSettings.WalkSpeed = data.WalkSpeed end
                 if data.CarrySpeed then AdvancedSettings.CarrySpeed = data.CarrySpeed end
             end
@@ -108,32 +123,36 @@ end
 
 pcall(function()
     StarterGui:SetCore("SendNotification", {
-        Title = "S4DUELS",
-        Text = "Premium UI Successfully Loaded!",
+        Title = "S4DUELS ELITE",
+        Text = "Premium Interface Successfully Injected.",
         Duration = 5
     })
 end)
 
 local function applyShinyGradient(parent, color1, color2)
     local gradient = Instance.new("UIGradient", parent)
+    -- Adds a sharp "light reflection" angle to the stroke for a 3D glass edge look
     gradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, color1),
         ColorSequenceKeypoint.new(0.4, color1),
-        ColorSequenceKeypoint.new(0.5, color2),
-        ColorSequenceKeypoint.new(0.6, color1),
-        ColorSequenceKeypoint.new(1, color1)
+        ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)), -- Bright reflection hotspot
+        ColorSequenceKeypoint.new(0.6, color2),
+        ColorSequenceKeypoint.new(1, color2)
     })
     
     task.spawn(function()
         local rotation = 0
         RunService.RenderStepped:Connect(function(deltaTime)
-            rotation = (rotation + (deltaTime * 50)) % 360 
+            rotation = (rotation + (deltaTime * 40)) % 360 
             gradient.Rotation = rotation
         end)
     end)
+    return gradient
 end
 
--- === FLAWLESS TOUCH, DRAG, AND CLICK ENGINE ===
+-- === FLAWLESS EXCLUSIVE TOUCH, DRAG, AND CLICK ENGINE ===
+local activeDrag = nil
+
 local function makeInteractive(frame, trigger, isDraggable, onClick)
     if not isDraggable then
         trigger.MouseButton1Click:Connect(function()
@@ -148,10 +167,13 @@ local function makeInteractive(frame, trigger, isDraggable, onClick)
 
     trigger.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            if guiLocked then return end 
+            hasMoved = false 
             
+            if guiLocked then return end 
+            if activeDrag and activeDrag ~= frame then return end 
+            
+            activeDrag = frame
             dragging = true
-            hasMoved = false
             dragStart = input.Position
             startPos = frame.Position
             dragInput = input 
@@ -165,9 +187,9 @@ local function makeInteractive(frame, trigger, isDraggable, onClick)
     end)
 
     UserInputService.InputChanged:Connect(function(input)
-        if dragging and input == dragInput then
+        if dragging and activeDrag == frame and input == dragInput then
             local delta = input.Position - dragStart
-            if delta.Magnitude > 15 then 
+            if delta.Magnitude > 10 then 
                 hasMoved = true 
             end
             
@@ -177,9 +199,17 @@ local function makeInteractive(frame, trigger, isDraggable, onClick)
         end
     end)
 
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging and activeDrag == frame then
+                dragging = false
+                activeDrag = nil
+            end
+        end
+    end)
+
     trigger.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
             if not hasMoved and onClick then
                 onClick()
             end
@@ -187,18 +217,21 @@ local function makeInteractive(frame, trigger, isDraggable, onClick)
     end)
 end
 
--- Slider Input Engine
-local function makeSliderInteractive(sliderTrigger, sliderTrack, sliderFill, label, varKey, maxVal, prefix)
+-- Premium Slider Input Engine
+local function makeSliderInteractive(sliderTrigger, sliderTrack, sliderFill, label, varKey, maxVal, prefix, minVal)
     local slidingInput = nil
+    minVal = minVal or 0
 
     sliderTrigger.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             if slidingInput then return end
+            if activeDrag then return end 
+            
             slidingInput = input
             
             local relX = math.clamp((input.Position.X - sliderTrack.AbsolutePosition.X) / sliderTrack.AbsoluteSize.X, 0, 1)
-            AdvancedSettings[varKey] = math.floor(relX * maxVal)
-            sliderFill.Size = UDim2.new(relX, 0, 1, 0)
+            AdvancedSettings[varKey] = math.floor(minVal + relX * (maxVal - minVal))
+            TweenService:Create(sliderFill, TWEEN_INFO, {Size = UDim2.new(relX, 0, 1, 0)}):Play()
             label.Text = prefix .. AdvancedSettings[varKey]
             
             local connection
@@ -214,8 +247,8 @@ local function makeSliderInteractive(sliderTrigger, sliderTrack, sliderFill, lab
     UserInputService.InputChanged:Connect(function(input)
         if input == slidingInput then
             local relX = math.clamp((input.Position.X - sliderTrack.AbsolutePosition.X) / sliderTrack.AbsoluteSize.X, 0, 1)
-            AdvancedSettings[varKey] = math.floor(relX * maxVal)
-            sliderFill.Size = UDim2.new(relX, 0, 1, 0)
+            AdvancedSettings[varKey] = math.floor(minVal + relX * (maxVal - minVal))
+            sliderFill.Size = UDim2.new(relX, 0, 1, 0) -- Direct update for responsiveness while dragging
             label.Text = prefix .. AdvancedSettings[varKey]
         end
     end)
@@ -226,15 +259,22 @@ local function createStyledFrame(name, size, pos, accentColor, parent)
     frame.Name = name
     frame.Size = size
     frame.Position = pos
-    frame.BackgroundColor3 = BG_COLOR
-    frame.BackgroundTransparency = 0.60 
+    frame.BackgroundColor3 = BG_DEEP
     frame.BorderSizePixel = 0
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+    
+    -- Subsurface gradient for glass depth
+    local bgGrad = Instance.new("UIGradient", frame)
+    bgGrad.Rotation = 90
+    bgGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 35)), 
+        ColorSequenceKeypoint.new(1, BG_DEEP)
+    })
     
     local stroke = Instance.new("UIStroke", frame)
-    stroke.Thickness = 1.5 
+    stroke.Thickness = 2 
     stroke.Color = Color3.new(1, 1, 1)
-    applyShinyGradient(stroke, accentColor or SHINY_PURPLE, Color3.new(1, 1, 1))
+    applyShinyGradient(stroke, accentColor or PRIMARY_ACCENT, SECONDARY_ACCENT)
     
     return frame, stroke
 end
@@ -244,85 +284,105 @@ end
 -- ==========================================
 
 -- [1] MAIN HEADER MENU
-local mainHeader, mainHeaderStroke = createStyledFrame("MainHeader", UDim2.new(0, 170, 0, 85), UDim2.new(0.5, -85, 0, 60), SHINY_PURPLE)
+local mainHeader, mainHeaderStroke = createStyledFrame("MainHeader", UDim2.new(0, 180, 0, 85), UDim2.new(0.5, -90, 0, 60), PRIMARY_ACCENT)
 local headerTitle = Instance.new("TextLabel", mainHeader)
 headerTitle.Size = UDim2.new(1, 0, 0, 35); headerTitle.Position = UDim2.new(0, 0, 0, 5)
-headerTitle.Text = "S4DUELS"; headerTitle.TextColor3 = Color3.new(1, 1, 1); headerTitle.Font = Enum.Font.GothamBold; headerTitle.TextSize = 22; headerTitle.BackgroundTransparency = 1
-applyShinyGradient(Instance.new("UIStroke", headerTitle), SHINY_PURPLE, Color3.new(1, 1, 1))
+headerTitle.Text = "S4DUELS"; headerTitle.TextColor3 = TEXT_MAIN; headerTitle.Font = Enum.Font.GothamBlack; headerTitle.TextSize = 22; headerTitle.BackgroundTransparency = 1
+applyShinyGradient(Instance.new("UIStroke", headerTitle), PRIMARY_ACCENT, SECONDARY_ACCENT)
 
 local statsLabel = Instance.new("TextLabel", mainHeader)
 statsLabel.Size = UDim2.new(1, 0, 0, 20); statsLabel.Position = UDim2.new(0, 0, 0, 35)
-statsLabel.Text = "FPS: -- | PING: --ms"; statsLabel.TextColor3 = Color3.new(0.85, 0.85, 0.85); statsLabel.Font = Enum.Font.GothamSemibold; statsLabel.TextSize = 10; statsLabel.BackgroundTransparency = 1
+statsLabel.Text = "FPS: -- | PING: --ms"; statsLabel.TextColor3 = Color3.fromRGB(160, 160, 175); statsLabel.Font = Enum.Font.GothamSemibold; statsLabel.TextSize = 10; statsLabel.BackgroundTransparency = 1
 
 local openSettingsBtn = Instance.new("TextButton", mainHeader)
-openSettingsBtn.Size = UDim2.new(0, 110, 0, 25); openSettingsBtn.Position = UDim2.new(0.5, -55, 1, 5)
-openSettingsBtn.Text = "S4HUB"; openSettingsBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30); openSettingsBtn.BackgroundTransparency = 0.5; openSettingsBtn.TextColor3 = Color3.new(1, 1, 1); openSettingsBtn.Font = Enum.Font.GothamBold; openSettingsBtn.TextSize = 11
+openSettingsBtn.Size = UDim2.new(0, 120, 0, 26); openSettingsBtn.Position = UDim2.new(0.5, -60, 1, 6)
+openSettingsBtn.Text = "LAUNCH HUB"; openSettingsBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30); openSettingsBtn.TextColor3 = TEXT_MAIN; openSettingsBtn.Font = Enum.Font.GothamBold; openSettingsBtn.TextSize = 11
 Instance.new("UICorner", openSettingsBtn).CornerRadius = UDim.new(0, 6)
-local osbStroke = Instance.new("UIStroke", openSettingsBtn); osbStroke.Thickness = 1.2; osbStroke.Color = SHINY_PURPLE
+local osbStroke = Instance.new("UIStroke", openSettingsBtn); osbStroke.Thickness = 1.5; osbStroke.Color = PRIMARY_ACCENT
 
 -- [2] STATIC LOCK BUTTON
-local lockFrame, lockStroke = createStyledFrame("LockGUI", UDim2.new(0, 85, 0, 35), UDim2.new(0.5, -215, 0, 35), NEON_BLUE)
+local lockFrame, lockStroke = createStyledFrame("LockGUI", UDim2.new(0, 85, 0, 35), UDim2.new(0.5, -235, 0, 35), SECONDARY_ACCENT)
 local lockBtn = Instance.new("TextButton", lockFrame)
 lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1
-lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = Color3.new(1, 1, 1); lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 11
+lockBtn.Text = "UNLOCK"; lockBtn.TextColor3 = TEXT_MAIN; lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 11
 
 -- [3] TOP-LEFT RETURN BUTTON 
-local returnFrame, returnStroke = createStyledFrame("ReturnHUB", UDim2.new(0, 110, 0, 40), UDim2.new(0, 15, 0, 15), NEON_BLUE)
+local returnFrame, returnStroke = createStyledFrame("ReturnHUB", UDim2.new(0, 120, 0, 42), UDim2.new(0, 15, 0, 15), SECONDARY_ACCENT)
 local returnBtn = Instance.new("TextButton", returnFrame)
 returnBtn.Size = UDim2.new(1, 0, 1, 0); returnBtn.BackgroundTransparency = 1
-returnBtn.Text = "S4HUB"; returnBtn.TextColor3 = Color3.new(1, 1, 1); returnBtn.Font = Enum.Font.GothamBold; returnBtn.TextSize = 14
+returnBtn.Text = "S4HUB"; returnBtn.TextColor3 = TEXT_MAIN; returnBtn.Font = Enum.Font.GothamBlack; returnBtn.TextSize = 14
 returnFrame.Visible = false
 
 -- [4] S4HUB MAIN SETTINGS MENU
-local hubMenu, hubMenuStroke = createStyledFrame("S4HUB_Menu", UDim2.new(0, 340, 0, 400), UDim2.new(0.5, -170, 0.5, -200), SHINY_PURPLE)
+local hubMenu, hubMenuStroke = createStyledFrame("S4HUB_Menu", UDim2.new(0, 340, 0, 340), UDim2.new(0.5, -170, 0.5, -170), PRIMARY_ACCENT)
 hubMenu.Visible = false
 
 local hubTitle = Instance.new("TextLabel", hubMenu)
-hubTitle.Size = UDim2.new(1, 0, 0, 40); hubTitle.Position = UDim2.new(0, 0, 0, 5)
-hubTitle.Text = "S4HUB"; hubTitle.TextColor3 = Color3.new(1, 1, 1); hubTitle.Font = Enum.Font.GothamBold; hubTitle.TextSize = 24; hubTitle.BackgroundTransparency = 1
-applyShinyGradient(Instance.new("UIStroke", hubTitle), SHINY_PURPLE, Color3.new(1, 1, 1))
+hubTitle.Size = UDim2.new(1, 0, 0, 45); hubTitle.Position = UDim2.new(0, 0, 0, 5)
+hubTitle.Text = "S4HUB ELITE"; hubTitle.TextColor3 = TEXT_MAIN; hubTitle.Font = Enum.Font.GothamBlack; hubTitle.TextSize = 24; hubTitle.BackgroundTransparency = 1
+applyShinyGradient(Instance.new("UIStroke", hubTitle), PRIMARY_ACCENT, SECONDARY_ACCENT)
+
+local titleSeparator = Instance.new("Frame", hubMenu)
+titleSeparator.Size = UDim2.new(0.9, 0, 0, 1); titleSeparator.Position = UDim2.new(0.05, 0, 0, 45)
+titleSeparator.BackgroundColor3 = Color3.new(1,1,1); titleSeparator.BorderSizePixel = 0
+applyShinyGradient(Instance.new("UIGradient", titleSeparator), PRIMARY_ACCENT, Color3.new(0,0,0))
 
 local closeHubBtn = Instance.new("TextButton", hubMenu)
-closeHubBtn.Size = UDim2.new(0, 24, 0, 24); closeHubBtn.Position = UDim2.new(1, -34, 0, 12)
-closeHubBtn.Text = "X"; closeHubBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 15); closeHubBtn.BackgroundTransparency = 0.5; closeHubBtn.TextColor3 = Color3.new(1, 1, 1); closeHubBtn.Font = Enum.Font.GothamBold; closeHubBtn.TextSize = 11
+closeHubBtn.Size = UDim2.new(0, 26, 0, 26); closeHubBtn.Position = UDim2.new(1, -36, 0, 10)
+closeHubBtn.Text = "X"; closeHubBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 25); closeHubBtn.TextColor3 = TEXT_MAIN; closeHubBtn.Font = Enum.Font.GothamBlack; closeHubBtn.TextSize = 13
 Instance.new("UICorner", closeHubBtn).CornerRadius = UDim.new(0, 6)
+Instance.new("UIStroke", closeHubBtn).Color = Color3.fromRGB(255, 60, 80)
 
--- === TAB SYSTEM ===
+-- === TAB SYSTEM WITH PREMIUM OUTLINES ===
 local tabContainer = Instance.new("Frame", hubMenu)
-tabContainer.Size = UDim2.new(1, -20, 0, 30)
-tabContainer.Position = UDim2.new(0, 10, 0, 45)
+tabContainer.Size = UDim2.new(1, -30, 0, 34)
+tabContainer.Position = UDim2.new(0, 15, 0, 55)
 tabContainer.BackgroundTransparency = 1
 
 local s4duelsTab = Instance.new("TextButton", tabContainer)
 s4duelsTab.Size = UDim2.new(0.48, 0, 1, 0); s4duelsTab.Position = UDim2.new(0, 0, 0, 0)
-s4duelsTab.BackgroundTransparency = 1; s4duelsTab.Text = "S4DUELS"; s4duelsTab.Font = Enum.Font.GothamBold; s4duelsTab.TextSize = 13
+s4duelsTab.BackgroundColor3 = Color3.fromRGB(20, 20, 30); s4duelsTab.BackgroundTransparency = 0.2
+Instance.new("UICorner", s4duelsTab).CornerRadius = UDim.new(0, 6)
+s4duelsTab.Text = "S4DUELS"; s4duelsTab.Font = Enum.Font.GothamBold; s4duelsTab.TextSize = 13
+local s4TabStroke = Instance.new("UIStroke", s4duelsTab)
+s4TabStroke.Thickness = 1.5; s4TabStroke.Color = SECONDARY_ACCENT
 
 local serverTab = Instance.new("TextButton", tabContainer)
 serverTab.Size = UDim2.new(0.48, 0, 1, 0); serverTab.Position = UDim2.new(0.52, 0, 0, 0)
-serverTab.BackgroundTransparency = 1; serverTab.Text = "SERVER"; serverTab.Font = Enum.Font.GothamBold; serverTab.TextSize = 13
+serverTab.BackgroundColor3 = Color3.fromRGB(20, 20, 30); serverTab.BackgroundTransparency = 0.2
+Instance.new("UICorner", serverTab).CornerRadius = UDim.new(0, 6)
+serverTab.Text = "SERVER"; serverTab.Font = Enum.Font.GothamBold; serverTab.TextSize = 13
+local serverTabStroke = Instance.new("UIStroke", serverTab)
+serverTabStroke.Thickness = 1.5; serverTabStroke.Color = Color3.fromRGB(80, 80, 90)
 
 local s4duelsScroll = Instance.new("ScrollingFrame", hubMenu)
-s4duelsScroll.Size = UDim2.new(1, -20, 1, -125); s4duelsScroll.Position = UDim2.new(0, 10, 0, 80)
-s4duelsScroll.BackgroundTransparency = 1; s4duelsScroll.CanvasSize = UDim2.new(0, 0, 1.4, 0); s4duelsScroll.ScrollBarThickness = 3; s4duelsScroll.ScrollBarImageColor3 = SHINY_PURPLE
+s4duelsScroll.Size = UDim2.new(1, -20, 1, -145); s4duelsScroll.Position = UDim2.new(0, 10, 0, 95)
+s4duelsScroll.BackgroundTransparency = 1; s4duelsScroll.CanvasSize = UDim2.new(0, 0, 1.4, 0); s4duelsScroll.ScrollBarThickness = 4; s4duelsScroll.ScrollBarImageColor3 = PRIMARY_ACCENT
 local s4Layout = Instance.new("UIGridLayout", s4duelsScroll)
-s4Layout.CellSize = UDim2.new(0.48, 0, 0, 35); s4Layout.CellPadding = UDim2.new(0, 8, 0, 8)
-Instance.new("UIPadding", s4duelsScroll).PaddingLeft = UDim.new(0, 2)
+s4Layout.CellSize = UDim2.new(0.48, 0, 0, 38); s4Layout.CellPadding = UDim2.new(0, 8, 0, 10)
+Instance.new("UIPadding", s4duelsScroll).PaddingLeft = UDim.new(0, 5)
 
 local serverScroll = Instance.new("ScrollingFrame", hubMenu)
-serverScroll.Size = UDim2.new(1, -20, 1, -125); serverScroll.Position = UDim2.new(0, 10, 0, 80)
-serverScroll.BackgroundTransparency = 1; serverScroll.CanvasSize = UDim2.new(0, 0, 1, 0); serverScroll.ScrollBarThickness = 3; serverScroll.ScrollBarImageColor3 = SHINY_PURPLE
+serverScroll.Size = UDim2.new(1, -20, 1, -145); serverScroll.Position = UDim2.new(0, 10, 0, 95)
+serverScroll.BackgroundTransparency = 1; serverScroll.CanvasSize = UDim2.new(0, 0, 1, 0); serverScroll.ScrollBarThickness = 4; serverScroll.ScrollBarImageColor3 = PRIMARY_ACCENT
 serverScroll.Visible = false
 local serverLayout = Instance.new("UIGridLayout", serverScroll)
-serverLayout.CellSize = UDim2.new(0.48, 0, 0, 35); serverLayout.CellPadding = UDim2.new(0, 8, 0, 8)
-Instance.new("UIPadding", serverScroll).PaddingLeft = UDim.new(0, 2)
+serverLayout.CellSize = UDim2.new(0.48, 0, 0, 38); serverLayout.CellPadding = UDim2.new(0, 8, 0, 10)
+Instance.new("UIPadding", serverScroll).PaddingLeft = UDim.new(0, 5)
 
 local function switchTab(tabName)
     if tabName == "S4DUELS" then
         s4duelsScroll.Visible = true; serverScroll.Visible = false
-        s4duelsTab.TextColor3 = NEON_BLUE; serverTab.TextColor3 = Color3.fromRGB(120, 120, 130)
+        TweenService:Create(s4duelsTab, TWEEN_INFO, {TextColor3 = SECONDARY_ACCENT}):Play()
+        TweenService:Create(serverTab, TWEEN_INFO, {TextColor3 = Color3.fromRGB(150, 150, 160)}):Play()
+        TweenService:Create(s4TabStroke, TWEEN_INFO, {Color = SECONDARY_ACCENT}):Play()
+        TweenService:Create(serverTabStroke, TWEEN_INFO, {Color = Color3.fromRGB(80, 80, 90)}):Play()
     else
         s4duelsScroll.Visible = false; serverScroll.Visible = true
-        s4duelsTab.TextColor3 = Color3.fromRGB(120, 120, 130); serverTab.TextColor3 = NEON_BLUE
+        TweenService:Create(s4duelsTab, TWEEN_INFO, {TextColor3 = Color3.fromRGB(150, 150, 160)}):Play()
+        TweenService:Create(serverTab, TWEEN_INFO, {TextColor3 = SECONDARY_ACCENT}):Play()
+        TweenService:Create(s4TabStroke, TWEEN_INFO, {Color = Color3.fromRGB(80, 80, 90)}):Play()
+        TweenService:Create(serverTabStroke, TWEEN_INFO, {Color = SECONDARY_ACCENT}):Play()
     end
 end
 s4duelsTab.MouseButton1Click:Connect(function() switchTab("S4DUELS") end)
@@ -330,81 +390,70 @@ serverTab.MouseButton1Click:Connect(function() switchTab("SERVER") end)
 switchTab("S4DUELS")
 
 local globalSaveBtn = Instance.new("TextButton", hubMenu)
-globalSaveBtn.Size = UDim2.new(0.9, 0, 0, 35); globalSaveBtn.Position = UDim2.new(0.05, 0, 1, -40)
-globalSaveBtn.Text = "SAVE SETTINGS (S4HUB)"; globalSaveBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 20); globalSaveBtn.TextColor3 = Color3.new(1, 1, 1); globalSaveBtn.Font = Enum.Font.GothamBold; globalSaveBtn.TextSize = 12
+globalSaveBtn.Size = UDim2.new(0.9, 0, 0, 36); globalSaveBtn.Position = UDim2.new(0.05, 0, 1, -42)
+globalSaveBtn.Text = "SAVE SETTINGS"; globalSaveBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 22); globalSaveBtn.TextColor3 = TEXT_MAIN; globalSaveBtn.Font = Enum.Font.GothamBlack; globalSaveBtn.TextSize = 13
 Instance.new("UICorner", globalSaveBtn).CornerRadius = UDim.new(0, 8)
-local gsbStroke = Instance.new("UIStroke", globalSaveBtn); gsbStroke.Thickness = 2; applyShinyGradient(gsbStroke, NEON_BLUE, Color3.new(1,1,1))
+local gsbStroke = Instance.new("UIStroke", globalSaveBtn); gsbStroke.Thickness = 2; applyShinyGradient(gsbStroke, SECONDARY_ACCENT, Color3.new(1,1,1))
 
--- [5] BAT FUCKER SPEED SLIDER MENU
-local speedMenu, speedMenuStroke = createStyledFrame("SpeedMenu", UDim2.new(0, 220, 0, 130), UDim2.new(0.5, 180, 0.5, -65), NEON_BLUE)
-speedMenu.Visible = false; speedMenu.ZIndex = 50
+-- [5] PREMIUM SLIDER MENUS
+local function createSettingsMenu(name, width, height, titleText)
+    local menu, stroke = createStyledFrame(name, UDim2.new(0, width, 0, height), UDim2.new(0.5, 180, 0.5, -height/2), SECONDARY_ACCENT)
+    menu.Visible = false; menu.ZIndex = 50
+    
+    local title = Instance.new("TextLabel", menu)
+    title.Size = UDim2.new(1, 0, 0, 35); title.Position = UDim2.new(0, 0, 0, 5)
+    title.Text = titleText; title.TextColor3 = TEXT_MAIN; title.Font = Enum.Font.GothamBlack; title.TextSize = 13; title.BackgroundTransparency = 1; title.ZIndex = 51
+    
+    local btn = Instance.new("TextButton", menu)
+    btn.Size = UDim2.new(0.85, 0, 0, 32); btn.Position = UDim2.new(0.075, 0, 1, -40)
+    btn.Text = "APPLY"; btn.BackgroundColor3 = Color3.fromRGB(20, 20, 30); btn.TextColor3 = TEXT_MAIN; btn.Font = Enum.Font.GothamBold; btn.TextSize = 12; btn.ZIndex = 51
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    Instance.new("UIStroke", btn).Color = SECONDARY_ACCENT; Instance.new("UIStroke", btn).Thickness = 1.5
+    
+    return menu, title, btn
+end
 
-local speedTitleLabel = Instance.new("TextLabel", speedMenu)
-speedTitleLabel.Size = UDim2.new(1, 0, 0, 35); speedTitleLabel.Position = UDim2.new(0, 0, 0, 5)
-speedTitleLabel.Text = "TRACKING SPEED: " .. AdvancedSettings.BatSpeed; speedTitleLabel.TextColor3 = Color3.new(1, 1, 1); speedTitleLabel.Font = Enum.Font.GothamBold; speedTitleLabel.TextSize = 12; speedTitleLabel.BackgroundTransparency = 1; speedTitleLabel.ZIndex = 51
+local function addPremiumSlider(menu, yPos, labelText, varKey, minVal, maxVal, prefix)
+    local label = Instance.new("TextLabel", menu)
+    label.Size = UDim2.new(1, 0, 0, 20); label.Position = UDim2.new(0, 0, 0, yPos)
+    label.Text = prefix .. AdvancedSettings[varKey]; label.TextColor3 = Color3.fromRGB(200, 200, 210); label.Font = Enum.Font.GothamSemibold; label.TextSize = 11; label.BackgroundTransparency = 1; label.ZIndex = 51
+    
+    local track = Instance.new("Frame", menu)
+    track.Size = UDim2.new(0.85, 0, 0, 8); track.Position = UDim2.new(0.075, 0, 0, yPos + 22)
+    track.BackgroundColor3 = Color3.fromRGB(30, 30, 40); track.ZIndex = 51; Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+    
+    local fill = Instance.new("Frame", track)
+    fill.Size = UDim2.new((AdvancedSettings[varKey] - minVal) / (maxVal - minVal), 0, 1, 0)
+    fill.BackgroundColor3 = SECONDARY_ACCENT; fill.ZIndex = 52; Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+    
+    local thumb = Instance.new("Frame", fill)
+    thumb.Size = UDim2.new(0, 14, 0, 14); thumb.Position = UDim2.new(1, -7, 0.5, -7)
+    thumb.BackgroundColor3 = Color3.new(1, 1, 1); thumb.ZIndex = 53; Instance.new("UICorner", thumb).CornerRadius = UDim.new(1, 0)
+    
+    local trigger = Instance.new("TextButton", track)
+    trigger.Size = UDim2.new(1, 0, 2, 0); trigger.Position = UDim2.new(0, 0, -0.5, 0); trigger.BackgroundTransparency = 1; trigger.Text = ""; trigger.ZIndex = 54
+    
+    makeSliderInteractive(trigger, track, fill, label, varKey, maxVal, prefix, minVal)
+end
 
-local sliderTrack = Instance.new("Frame", speedMenu)
-sliderTrack.Size = UDim2.new(0.8, 0, 0, 12); sliderTrack.Position = UDim2.new(0.1, 0, 0.45, 0)
-sliderTrack.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15); sliderTrack.BackgroundTransparency = 0.5; sliderTrack.ZIndex = 51; Instance.new("UICorner", sliderTrack)
+local speedMenu, speedTitle, confirmSpeedBtn = createSettingsMenu("SpeedMenu", 230, 130, "BAT FUCKER ENGINE")
+addPremiumSlider(speedMenu, 40, "TRACKING SPEED: ", "BatSpeed", 0, 70, "TRACKING SPEED: ")
+makeInteractive(speedMenu, speedTitle, true, nil)
+makeInteractive(confirmSpeedBtn, confirmSpeedBtn, false, function() saveConfigs(); speedMenu.Visible = false end)
 
-local sliderFill = Instance.new("Frame", sliderTrack)
-sliderFill.Size = UDim2.new(AdvancedSettings.BatSpeed / 70, 0, 1, 0)
-sliderFill.BackgroundColor3 = NEON_BLUE; sliderFill.ZIndex = 52; Instance.new("UICorner", sliderFill)
+local flyMenu, flyTitle, confirmFlyBtn = createSettingsMenu("FlyMenu", 240, 180, "FLIGHT DYNAMICS")
+addPremiumSlider(flyMenu, 40, "Fly Speed (0-70): ", "FlySpeed", 0, 70, "Fly Speed (0-70): ")
+addPremiumSlider(flyMenu, 90, "Fly Carry Speed (1-30): ", "FlyCarrySpeed", 1, 30, "Fly Carry Speed (1-30): ")
+makeInteractive(flyMenu, flyTitle, true, nil)
+makeInteractive(confirmFlyBtn, confirmFlyBtn, false, function() saveConfigs(); flyMenu.Visible = false end)
 
-local sliderTrigger = Instance.new("TextButton", sliderTrack)
-sliderTrigger.Size = UDim2.new(1, 0, 1, 0); sliderTrigger.BackgroundTransparency = 1; sliderTrigger.Text = ""; sliderTrigger.ZIndex = 53
+local boosterMenu, boosterTitle, confirmBoosterBtn = createSettingsMenu("BoosterMenu", 240, 180, "S4BOOSTER CONFIG")
+addPremiumSlider(boosterMenu, 40, "Walk Speed (0-70): ", "WalkSpeed", 0, 70, "Walk Speed (0-70): ")
+addPremiumSlider(boosterMenu, 90, "Carry Speed (0-32): ", "CarrySpeed", 0, 32, "Carry Speed (0-32): ")
+makeInteractive(boosterMenu, boosterTitle, true, nil)
+makeInteractive(confirmBoosterBtn, confirmBoosterBtn, false, function() saveConfigs(); boosterMenu.Visible = false end)
 
-local confirmSpeedBtn = Instance.new("TextButton", speedMenu)
-confirmSpeedBtn.Size = UDim2.new(0.8, 0, 0, 30); confirmSpeedBtn.Position = UDim2.new(0.1, 0, 0.70, 0)
-confirmSpeedBtn.Text = "SAVE SPEED"; confirmSpeedBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 20); confirmSpeedBtn.BackgroundTransparency = 0.5; confirmSpeedBtn.TextColor3 = Color3.new(1, 1, 1); confirmSpeedBtn.Font = Enum.Font.GothamBold; confirmSpeedBtn.TextSize = 11; confirmSpeedBtn.ZIndex = 51
-Instance.new("UICorner", confirmSpeedBtn).CornerRadius = UDim.new(0, 6)
-local csbStroke = Instance.new("UIStroke", confirmSpeedBtn); csbStroke.Thickness = 1.2; csbStroke.Color = NEON_BLUE
-
--- [6] S4BOOSTER SPEED SETTINGS MENU
-local boosterMenu, boosterMenuStroke = createStyledFrame("BoosterMenu", UDim2.new(0, 240, 0, 190), UDim2.new(0.5, 180, 0.5, 0), NEON_BLUE)
-boosterMenu.Visible = false; boosterMenu.ZIndex = 50
-
-local boosterTitle = Instance.new("TextLabel", boosterMenu)
-boosterTitle.Size = UDim2.new(1, 0, 0, 30); boosterTitle.Position = UDim2.new(0, 0, 0, 5)
-boosterTitle.Text = "S4BOOSTER CONFIG"; boosterTitle.TextColor3 = Color3.new(1, 1, 1); boosterTitle.Font = Enum.Font.GothamBold; boosterTitle.TextSize = 14; boosterTitle.BackgroundTransparency = 1; boosterTitle.ZIndex = 51
-
-local wSpeedLabel = Instance.new("TextLabel", boosterMenu)
-wSpeedLabel.Size = UDim2.new(1, 0, 0, 20); wSpeedLabel.Position = UDim2.new(0, 0, 0, 35)
-wSpeedLabel.Text = "Walk Speed (0-70): " .. AdvancedSettings.WalkSpeed; wSpeedLabel.TextColor3 = Color3.new(0.9, 0.9, 0.9); wSpeedLabel.Font = Enum.Font.GothamSemibold; wSpeedLabel.TextSize = 11; wSpeedLabel.BackgroundTransparency = 1; wSpeedLabel.ZIndex = 51
-
-local wTrack = Instance.new("Frame", boosterMenu)
-wTrack.Size = UDim2.new(0.8, 0, 0, 10); wTrack.Position = UDim2.new(0.1, 0, 0.30, 0)
-wTrack.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15); wTrack.BackgroundTransparency = 0.5; wTrack.ZIndex = 51; Instance.new("UICorner", wTrack)
-
-local wFill = Instance.new("Frame", wTrack)
-wFill.Size = UDim2.new(AdvancedSettings.WalkSpeed / 70, 0, 1, 0)
-wFill.BackgroundColor3 = NEON_BLUE; wFill.ZIndex = 52; Instance.new("UICorner", wFill)
-
-local wTrigger = Instance.new("TextButton", wTrack)
-wTrigger.Size = UDim2.new(1, 0, 1, 0); wTrigger.BackgroundTransparency = 1; wTrigger.Text = ""; wTrigger.ZIndex = 53
-
-local cSpeedLabel = Instance.new("TextLabel", boosterMenu)
-cSpeedLabel.Size = UDim2.new(1, 0, 0, 20); cSpeedLabel.Position = UDim2.new(0, 0, 0, 85)
-cSpeedLabel.Text = "Carry Speed (0-32): " .. AdvancedSettings.CarrySpeed; cSpeedLabel.TextColor3 = Color3.new(0.9, 0.9, 0.9); cSpeedLabel.Font = Enum.Font.GothamSemibold; cSpeedLabel.TextSize = 11; cSpeedLabel.BackgroundTransparency = 1; cSpeedLabel.ZIndex = 51
-
-local cTrack = Instance.new("Frame", boosterMenu)
-cTrack.Size = UDim2.new(0.8, 0, 0, 10); cTrack.Position = UDim2.new(0.1, 0, 0.55, 0)
-cTrack.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15); cTrack.BackgroundTransparency = 0.5; cTrack.ZIndex = 51; Instance.new("UICorner", cTrack)
-
-local cFill = Instance.new("Frame", cTrack)
-cFill.Size = UDim2.new(AdvancedSettings.CarrySpeed / 32, 0, 1, 0)
-cFill.BackgroundColor3 = NEON_BLUE; cFill.ZIndex = 52; Instance.new("UICorner", cFill)
-
-local cTrigger = Instance.new("TextButton", cTrack)
-cTrigger.Size = UDim2.new(1, 0, 1, 0); cTrigger.BackgroundTransparency = 1; cTrigger.Text = ""; cTrigger.ZIndex = 53
-
-local confirmBoosterBtn = Instance.new("TextButton", boosterMenu)
-confirmBoosterBtn.Size = UDim2.new(0.8, 0, 0, 32); confirmBoosterBtn.Position = UDim2.new(0.1, 0, 0.78, 0)
-confirmBoosterBtn.Text = "SAVE SPEED"; confirmBoosterBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 20); confirmBoosterBtn.BackgroundTransparency = 0.5; confirmBoosterBtn.TextColor3 = Color3.new(1, 1, 1); confirmBoosterBtn.Font = Enum.Font.GothamBold; confirmBoosterBtn.TextSize = 11; confirmBoosterBtn.ZIndex = 51
-Instance.new("UICorner", confirmBoosterBtn).CornerRadius = UDim.new(0, 6)
-local cbbStroke = Instance.new("UIStroke", confirmBoosterBtn); cbbStroke.Thickness = 1.5; cbbStroke.Color = NEON_BLUE
-
--- [7] duelfucker HUD (Container for draggable buttons)
+-- [7] duelfucker HUD
 local duelFuckerHUD = Instance.new("Frame", screenGui)
 duelFuckerHUD.Size = UDim2.new(1, 0, 1, 0); duelFuckerHUD.BackgroundTransparency = 1; duelFuckerHUD.Visible = false
 
@@ -414,11 +463,16 @@ duelFuckerHUD.Size = UDim2.new(1, 0, 1, 0); duelFuckerHUD.BackgroundTransparency
 
 local function syncUIState(featureName)
     local isActive = States[featureName]
-    local targetColor = isActive and ACTIVE_GREEN or Color3.new(1, 1, 1)
+    local targetColor = isActive and ACTIVE_GLOW or Color3.new(1, 1, 1)
     
     if ButtonRegistry[featureName] then
-        for _, stroke in pairs(ButtonRegistry[featureName]) do
-            stroke.Color = targetColor
+        for _, obj in pairs(ButtonRegistry[featureName]) do
+            TweenService:Create(obj.stroke, TWEEN_INFO, {Color = targetColor}):Play()
+            if isActive then
+                TweenService:Create(obj.bg, TWEEN_INFO, {BackgroundColor3 = Color3.fromRGB(30, 35, 45)}):Play()
+            else
+                TweenService:Create(obj.bg, TWEEN_INFO, {BackgroundColor3 = BG_DEEP}):Play()
+            end
         end
     end
 end
@@ -443,30 +497,32 @@ local function createSyncedButton(text, isToggle, parent, position, callback)
 
     if parent == s4duelsScroll or parent == serverScroll then
         frame = Instance.new("Frame", parent)
-        frame.BackgroundColor3 = BG_COLOR; frame.BackgroundTransparency = 0.60; frame.BorderSizePixel = 0
+        frame.BackgroundColor3 = BG_DEEP; frame.BorderSizePixel = 0
         Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
         stroke = Instance.new("UIStroke", frame); stroke.Thickness = 1.5; stroke.Color = Color3.new(1,1,1)
-        applyShinyGradient(stroke, SHINY_PURPLE, Color3.new(1, 1, 1))
     else
-        frame, stroke = createStyledFrame(text.."_duelfucker", UDim2.new(0, 130, 0, 42), position, SHINY_PURPLE, parent)
+        frame, stroke = createStyledFrame(text.."_duelfucker", UDim2.new(0, 135, 0, 44), position, PRIMARY_ACCENT, parent)
         isDraggable = true
     end
 
     local actionBtn = Instance.new("TextButton", frame)
     actionBtn.Size = UDim2.new(1, 0, 1, 0); actionBtn.BackgroundTransparency = 1
-    actionBtn.Text = text; actionBtn.TextColor3 = Color3.new(1, 1, 1); actionBtn.Font = Enum.Font.GothamBold; actionBtn.TextSize = 11
+    actionBtn.Text = text; actionBtn.TextColor3 = TEXT_MAIN; actionBtn.Font = Enum.Font.GothamBold; actionBtn.TextSize = 11
 
     if text == "Bat Fucker" then
         local gearIcon = Instance.new("TextButton", frame)
-        gearIcon.Size = UDim2.new(0, 24, 0, 24); gearIcon.Position = UDim2.new(1, -26, 0.5, -12)
-        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 14; gearIcon.ZIndex = 5
+        gearIcon.Size = UDim2.new(0, 26, 0, 26); gearIcon.Position = UDim2.new(1, -28, 0.5, -13)
+        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 15; gearIcon.ZIndex = 5
         makeInteractive(gearIcon, gearIcon, false, function() speedMenu.Visible = not speedMenu.Visible end)
-    end
-    
-    if text == "S4BOOSTER" then
+    elseif text == "Fly" then
         local gearIcon = Instance.new("TextButton", frame)
-        gearIcon.Size = UDim2.new(0, 24, 0, 24); gearIcon.Position = UDim2.new(1, -26, 0.5, -12)
-        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 14; gearIcon.ZIndex = 5
+        gearIcon.Size = UDim2.new(0, 26, 0, 26); gearIcon.Position = UDim2.new(1, -28, 0.5, -13)
+        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 15; gearIcon.ZIndex = 5
+        makeInteractive(gearIcon, gearIcon, false, function() flyMenu.Visible = not flyMenu.Visible end)
+    elseif text == "S4BOOSTER" then
+        local gearIcon = Instance.new("TextButton", frame)
+        gearIcon.Size = UDim2.new(0, 26, 0, 26); gearIcon.Position = UDim2.new(1, -28, 0.5, -13)
+        gearIcon.Text = "⚙️"; gearIcon.BackgroundTransparency = 1; gearIcon.TextColor3 = Color3.new(1, 1, 1); gearIcon.TextSize = 15; gearIcon.ZIndex = 5
         makeInteractive(gearIcon, gearIcon, false, function() boosterMenu.Visible = not boosterMenu.Visible end)
     end
 
@@ -478,16 +534,16 @@ local function createSyncedButton(text, isToggle, parent, position, callback)
             if callback then callback(newState) end
         else
             task.spawn(function()
-                stroke.Color = Color3.new(1, 1, 1)
-                task.wait(0.2)
-                stroke.Color = Color3.new(1, 1, 1)
+                TweenService:Create(stroke, TweenInfo.new(0.1), {Color = SECONDARY_ACCENT}):Play()
+                task.wait(0.15)
+                TweenService:Create(stroke, TweenInfo.new(0.2), {Color = Color3.new(1, 1, 1)}):Play()
             end)
             if callback then callback() end
         end
     end)
 
     if not ButtonRegistry[text] then ButtonRegistry[text] = {} end
-    table.insert(ButtonRegistry[text], stroke)
+    table.insert(ButtonRegistry[text], {stroke = stroke, bg = frame})
     return frame
 end
 
@@ -495,21 +551,36 @@ end
 -- ========== FEATURE LOGIC & PHYSICS =======
 -- ==========================================
 
--- === FILTERED GUARANTEED AUTO-STEAL AURA ENGINE ===
+local function handleBoosterToggle(state)
+    if state then
+        -- Manual Override: Turning S4BOOSTER ON resets a stuck Carry Speed
+        InternalCarryState = false
+    end
+    if not state and Player.Character and Player.Character:FindFirstChild("Humanoid") then
+        Player.Character.Humanoid.WalkSpeed = 16
+    end
+end
+
+-- Reset on Death
+Player.CharacterAdded:Connect(function(char)
+    char:WaitForChild("Humanoid").Died:Connect(function()
+        States["Bat Fucker"] = false
+        States["Fly"] = false
+        syncUIState("Bat Fucker")
+        syncUIState("Fly")
+    end)
+end)
+
+-- === DIRECT O(1) INSTANT STEAL AURA ENGINE ===
 local cachedPrompts = {}
 
-local function isPromptSafe(prompt)
-    local txt = string.lower(tostring(prompt.ActionText) .. " " .. tostring(prompt.ObjectText) .. " " .. tostring(prompt.Name))
-    local blacklist = {
-        "shop", "robux", "buy", "purchase", "store", "gamepass", "premium", "donate",
-        "wheel", "spin", "craft", "trade", "lock base", "lock", "unlock base", "unlock"
-    }
-    for _, word in ipairs(blacklist) do
-        if string.find(txt, word) then
-            return false
-        end
+local function isTargetPrompt(prompt)
+    local actionText = tostring(prompt.ActionText)
+    -- DIRECT STRING MATCHING: O(1) Efficiency. Zero Lag. 
+    if actionText == "Steal" or actionText == "Rob" or actionText == "Collect" then
+        return true
     end
-    return true
+    return false
 end
 
 for _, obj in pairs(workspace:GetDescendants()) do
@@ -533,8 +604,11 @@ task.spawn(function()
                     local prompt = cachedPrompts[i]
                     if not prompt or not prompt.Parent then
                         table.remove(cachedPrompts, i)
-                    elseif prompt.Enabled and isPromptSafe(prompt) then 
+                    elseif prompt.Enabled and isTargetPrompt(prompt) then 
                         local part = prompt.Parent
+                        
+                        prompt.RequiresLineOfSight = false
+                        prompt.HoldDuration = 0 
                         
                         local promptPos = nil
                         if part:IsA("BasePart") then
@@ -550,28 +624,22 @@ task.spawn(function()
                         if promptPos then
                             local distance = (promptPos - hrp.Position).Magnitude
                             if distance <= prompt.MaxActivationDistance + 5 then
-                                -- Anti-Spam: Guarantee 0.15s hold without breaking the prompt state
-                                if not prompt:GetAttribute("S4_Stealing") then
+                                
+                                local isStealing = prompt:GetAttribute("S4_Stealing")
+                                if not isStealing then
                                     prompt:SetAttribute("S4_Stealing", true)
-                                    
                                     task.spawn(function()
                                         pcall(function()
-                                            prompt.RequiresLineOfSight = false
-                                            prompt.HoldDuration = 0 
-                                            task.wait(0.05) -- Let local properties replicate
-                                            
                                             if type(fireproximityprompt) == "function" then
                                                 fireproximityprompt(prompt, 1)
                                                 fireproximityprompt(prompt, 0)
                                             end
                                             
-                                            -- Solid, guaranteed simulated hold to bypass input cancellations
                                             prompt:InputHoldBegin()
                                             task.wait(0.15) 
                                             prompt:InputHoldEnd()
                                         end)
-                                        
-                                        task.wait(0.5) -- Cooldown before attempting this specific prompt again
+                                        task.wait(0.3)
                                         if prompt then prompt:SetAttribute("S4_Stealing", nil) end
                                     end)
                                 end
@@ -681,57 +749,6 @@ local function applyUnwalk(state)
     end
 end
 
-local function handleBoosterToggle(state)
-    if not state and Player.Character and Player.Character:FindFirstChild("Humanoid") then
-        Player.Character.Humanoid.WalkSpeed = 16
-    end
-end
-
--- === HYBRID CARRY DETECTION (ULTRA-AGGRESSIVE HIERARCHY/WELD SCANNER) ===
-local function isCarryingBrainrot()
-    local char = Player.Character
-    if not char then return false end
-    
-    if char:FindFirstChildOfClass("Tool") then return true end
-    
-    local hum = char:FindFirstChild("Humanoid")
-    if hum and hum.WalkSpeed < 15.5 and hum.WalkSpeed > 0 then 
-        return true 
-    end
-    
-    local root = char:FindFirstChild("HumanoidRootPart")
-    local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
-    
-    local partsToCheck = {root, torso, char:FindFirstChild("RightHand"), char:FindFirstChild("Right Arm")}
-    for _, bodyPart in pairs(partsToCheck) do
-        if bodyPart then
-            for _, child in pairs(bodyPart:GetChildren()) do
-                if child:IsA("Weld") or child:IsA("WeldConstraint") or child:IsA("Motor6D") then
-                    local attached = (child:IsA("WeldConstraint") and child.Part1) or child.Part1
-                    if attached and attached.Parent and attached.Parent ~= char and not attached.Parent:IsA("Accessory") then
-                        return true
-                    end
-                end
-            end
-        end
-    end
-    
-    for _, obj in pairs(char:GetChildren()) do
-        if obj:IsA("Model") then
-            return true
-        end
-        if obj:IsA("BoolValue") or obj:IsA("ObjectValue") then
-            local name = string.lower(obj.Name)
-            if string.find(name, "carry") or string.find(name, "hold") or string.find(name, "stealing") or string.find(name, "brainrot") then
-                if obj:IsA("BoolValue") and obj.Value == true then return true end
-                if obj:IsA("ObjectValue") and obj.Value ~= nil then return true end
-            end
-        end
-    end
-    
-    return false
-end
-
 -- === MOBILE & PC SAFE INFINITE JUMP ===
 UserInputService.JumpRequest:Connect(function()
     if States["Inf Jump"] and Player.Character then
@@ -758,6 +775,7 @@ end
 -- [TAB 1: S4DUELS COMBAT/MOVEMENT]
 createSyncedButton("duelfucker", true, s4duelsScroll, nil, activateDuelFuckerMode)
 createSyncedButton("Bat Fucker", true, s4duelsScroll, nil, nil)
+createSyncedButton("Fly", true, s4duelsScroll, nil, nil)
 createSyncedButton("S4BOOSTER", true, s4duelsScroll, nil, handleBoosterToggle)
 createSyncedButton("Instant Steal", true, s4duelsScroll, nil, nil) 
 createSyncedButton("Inf Jump", true, s4duelsScroll, nil, nil)
@@ -782,10 +800,11 @@ createSyncedButton("Kick Self", false, serverScroll, nil, function() Player:Kick
 -- [POPULATE duelfucker HUD]
 createSyncedButton("Bat Fucker", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.3, 0), nil)
 createSyncedButton("S4BOOSTER", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.4, 0), handleBoosterToggle)
-createSyncedButton("Instant Steal", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.5, 0), nil)
 createSyncedButton("ESP", true, duelFuckerHUD, UDim2.new(0.05, 0, 0.5, 0), nil)
+createSyncedButton("Fly", true, duelFuckerHUD, UDim2.new(0.45, 0, 0.3, 0), nil)
 createSyncedButton("Inf Jump", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.3, 0), nil)
 createSyncedButton("Unwalk", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.4, 0), applyUnwalk)
+createSyncedButton("Instant Steal", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.5, 0), nil)
 
 -- ==========================================
 -- ========== BINDINGS & SETUP ==============
@@ -793,8 +812,8 @@ createSyncedButton("Unwalk", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.4, 0), ap
 
 makeInteractive(lockFrame, lockBtn, false, function()
     guiLocked = not guiLocked
-    lockBtn.Text = guiLocked and "LOCKED" or "LOCK GUI"
-    lockStroke.Color = guiLocked and Color3.fromRGB(255, 50, 50) or NEON_BLUE
+    lockBtn.Text = guiLocked and "LOCKED" or "UNLOCK"
+    TweenService:Create(lockStroke, TWEEN_INFO, {Color = guiLocked and Color3.fromRGB(255, 50, 80) or SECONDARY_ACCENT}):Play()
 end)
 
 makeInteractive(returnFrame, returnBtn, true, function() activateDuelFuckerMode(false) end)
@@ -803,15 +822,6 @@ makeInteractive(openSettingsBtn, openSettingsBtn, false, function() hubMenu.Visi
 makeInteractive(hubMenu, hubTitle, true, nil)
 makeInteractive(closeHubBtn, closeHubBtn, false, function() hubMenu.Visible = false end)
 makeInteractive(globalSaveBtn, globalSaveBtn, false, saveConfigs)
-
-makeSliderInteractive(sliderTrigger, sliderTrack, sliderFill, speedTitleLabel, "BatSpeed", 70, "TRACKING SPEED: ")
-makeInteractive(speedMenu, speedTitleLabel, true, nil)
-makeInteractive(confirmSpeedBtn, confirmSpeedBtn, false, function() saveConfigs(); speedMenu.Visible = false end)
-
-makeSliderInteractive(wTrigger, wTrack, wFill, wSpeedLabel, "WalkSpeed", 70, "Walk Speed (0-70): ")
-makeSliderInteractive(cTrigger, cTrack, cFill, cSpeedLabel, "CarrySpeed", 32, "Carry Speed (0-32): ")
-makeInteractive(boosterMenu, boosterTitle, true, nil)
-makeInteractive(confirmBoosterBtn, confirmBoosterBtn, false, function() saveConfigs(); boosterMenu.Visible = false end)
 
 -- ==========================================
 -- ========== HEARTBEAT PHYSICS ENGINE ======
@@ -835,40 +845,90 @@ local function safeFlightCleanup(char)
 end
 
 RunService.Heartbeat:Connect(function(deltaTime)
-    -- BAT FUCKER (ANTI-TRIP PHYSICS BYPASS)
-    if States["Bat Fucker"] and Player.Character then
-        local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
-        local hum = Player.Character:FindFirstChild("Humanoid")
+    local char = Player.Character
+    if char then
+        local hum = char:FindFirstChild("Humanoid")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
         
-        if hrp and hum then
-            hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-            hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-            
-            if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
-                hum:ChangeState(Enum.HumanoidStateType.Freefall)
-            end
-            
-            local targetHrp = nil
-            local shortestDist = math.huge
+        if hum and hrp then
 
-            for _, v in pairs(Players:GetPlayers()) do
-                if v ~= Player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") then
-                    if v.Character.Humanoid.Health > 0 then
-                        local dist = (hrp.Position - v.Character.HumanoidRootPart.Position).Magnitude
-                        if dist < shortestDist then
-                            shortestDist = dist
-                            targetHrp = v.Character.HumanoidRootPart
+            -- FLIGHT ENGINES PRIORITY: Bat Fucker -> Fly -> S4BOOSTER
+            if States["Bat Fucker"] then
+                hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+                
+                if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
+                    hum:ChangeState(Enum.HumanoidStateType.Freefall)
+                end
+                
+                local targetHrp = nil
+                local shortestDist = math.huge
+
+                for _, v in pairs(Players:GetPlayers()) do
+                    if v ~= Player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") then
+                        if v.Character.Humanoid.Health > 0 then
+                            local dist = (hrp.Position - v.Character.HumanoidRootPart.Position).Magnitude
+                            if dist < shortestDist then
+                                shortestDist = dist
+                                targetHrp = v.Character.HumanoidRootPart
+                            end
                         end
                     end
                 end
-            end
 
-            if targetHrp then
-                local targetPos = targetHrp.Position
-                local predictedPos = targetPos + (targetHrp.AssemblyLinearVelocity * 0.1)
-                local direction = (predictedPos - hrp.Position).Unit
-                local distance = (predictedPos - hrp.Position).Magnitude
+                if targetHrp then
+                    local targetPos = targetHrp.Position
+                    local predictedPos = targetPos + (targetHrp.AssemblyLinearVelocity * 0.1)
+                    local direction = (predictedPos - hrp.Position).Unit
+                    local distance = (predictedPos - hrp.Position).Magnitude
 
+                    local att = hrp:FindFirstChild("StealthAtt")
+                    if not att then
+                        att = Instance.new("Attachment")
+                        att.Name = "StealthAtt"
+                        att.Parent = hrp
+                    end
+                    
+                    local lv = hrp:FindFirstChild("StealthLV")
+                    if not lv then
+                        lv = Instance.new("LinearVelocity")
+                        lv.Name = "StealthLV"
+                        lv.Attachment0 = att
+                        lv.MaxForce = math.huge
+                        lv.Parent = hrp
+                    end
+
+                    local ao = hrp:FindFirstChild("StealthAO")
+                    if not ao then
+                        ao = Instance.new("AlignOrientation")
+                        ao.Name = "StealthAO"
+                        ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+                        ao.Attachment0 = att
+                        ao.RigidityEnabled = true
+                        ao.Parent = hrp
+                    end
+                    
+                    local lookAtPos = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
+                    ao.CFrame = CFrame.lookAt(hrp.Position, lookAtPos)
+
+                    if distance > 4 then
+                        lv.VectorVelocity = direction * AdvancedSettings.BatSpeed
+                    else
+                        lv.VectorVelocity = targetHrp.AssemblyLinearVelocity + (direction * 2)
+                    end
+                else
+                    safeFlightCleanup(char)
+                end
+                
+            elseif States["Fly"] then
+                -- FREE FLY ENGINE
+                hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+                
+                if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
+                    hum:ChangeState(Enum.HumanoidStateType.Freefall)
+                end
+                
                 local att = hrp:FindFirstChild("StealthAtt")
                 if not att then
                     att = Instance.new("Attachment")
@@ -895,45 +955,56 @@ RunService.Heartbeat:Connect(function(deltaTime)
                     ao.Parent = hrp
                 end
                 
-                local lookAtPos = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
-                ao.CFrame = CFrame.lookAt(hrp.Position, lookAtPos)
+                local cam = workspace.CurrentCamera
+                ao.CFrame = cam.CFrame
 
-                if distance > 4 then
-                    lv.VectorVelocity = direction * AdvancedSettings.BatSpeed
+                local moveDir = hum.MoveDirection
+                if moveDir.Magnitude > 0 then
+                    local flatLook = Vector3.new(cam.CFrame.LookVector.X, 0, cam.CFrame.LookVector.Z)
+                    if flatLook.Magnitude > 0 then 
+                        flatLook = flatLook.Unit 
+                    else 
+                        flatLook = Vector3.new(0, 0, 1) 
+                    end
+                    
+                    local forwardMag = moveDir:Dot(flatLook)
+                    local rightMag = moveDir:Dot(cam.CFrame.RightVector)
+                    
+                    local flyDir = (cam.CFrame.LookVector * forwardMag + cam.CFrame.RightVector * rightMag)
+                    if flyDir.Magnitude > 0 then 
+                        flyDir = flyDir.Unit 
+                    end
+                    
+                    -- NATIVE FLY CARRY DETECTION
+                    local targetSpeed = AdvancedSettings.FlySpeed
+                    if Player:GetAttribute("Stealing") then
+                        targetSpeed = AdvancedSettings.FlyCarrySpeed
+                    end
+                    
+                    lv.VectorVelocity = flyDir * targetSpeed
                 else
-                    lv.VectorVelocity = targetHrp.AssemblyLinearVelocity + (direction * 2)
+                    lv.VectorVelocity = Vector3.new(0, 0, 0)
                 end
-            else
-                safeFlightCleanup(Player.Character)
-            end
-        end
-    else
-        if Player.Character then
-            safeFlightCleanup(Player.Character)
-        end
-
-        -- S4BOOSTER (LINEAR VELOCITY OVERRIDE)
-        if States["S4BOOSTER"] and Player.Character then
-            local hum = Player.Character:FindFirstChild("Humanoid")
-            local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
-            
-            if hum and hrp and hum.MoveDirection.Magnitude > 0 then
-                local isCarrying = isCarryingBrainrot()
-                local targetSpeed = isCarrying and AdvancedSettings.CarrySpeed or AdvancedSettings.WalkSpeed
                 
-                local velocityDir = hum.MoveDirection * targetSpeed
-                hrp.AssemblyLinearVelocity = Vector3.new(velocityDir.X, hrp.AssemblyLinearVelocity.Y, velocityDir.Z)
+            else
+                safeFlightCleanup(char)
+
+                -- S4BOOSTER (NATIVE CARRY DETECTION)
+                if States["S4BOOSTER"] and hum.MoveDirection.Magnitude > 0 then
+                    
+                    local targetSpeed = AdvancedSettings.WalkSpeed
+                    
+                    -- The game natively adds the "Stealing" attribute to your Player when carrying the brainrot
+                    if Player:GetAttribute("Stealing") then
+                        targetSpeed = AdvancedSettings.CarrySpeed
+                    end
+                    
+                    local velocityDir = hum.MoveDirection * targetSpeed
+                    hrp.AssemblyLinearVelocity = Vector3.new(velocityDir.X, hrp.AssemblyLinearVelocity.Y, velocityDir.Z)
+                end
             end
         end
     end
-end)
-
-Player.CharacterAdded:Connect(function(char)
-    char.Humanoid.Died:Connect(function()
-        States["Bat Fucker"] = false
-        syncUIState("Bat Fucker")
-        safeFlightCleanup(char)
-    end)
 end)
 
 -- ==========================================
