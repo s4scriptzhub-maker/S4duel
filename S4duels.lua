@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ COMPACT MOBILE GUI, ANTI-TRIP PHYSICS, AGGRESSIVE WELD CARRY DETECTION ]] --
+-- [[ COMPACT MOBILE GUI, ANTI-TRIP PHYSICS, GUARANTEED AUTO-STEAL ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -226,7 +226,7 @@ local function createStyledFrame(name, size, pos, accentColor, parent)
     frame.Name = name
     frame.Size = size
     frame.Position = pos
-    frame.BackgroundColor3 = BG_COLOR -- FIX: Corrected from BackgroundColor to BackgroundColor3
+    frame.BackgroundColor3 = BG_COLOR
     frame.BackgroundTransparency = 0.60 
     frame.BorderSizePixel = 0
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
@@ -495,8 +495,22 @@ end
 -- ========== FEATURE LOGIC & PHYSICS =======
 -- ==========================================
 
--- === AGGRESSIVE AUTO-STEAL AURA ENGINE ===
+-- === FILTERED GUARANTEED AUTO-STEAL AURA ENGINE ===
 local cachedPrompts = {}
+
+local function isPromptSafe(prompt)
+    local txt = string.lower(tostring(prompt.ActionText) .. " " .. tostring(prompt.ObjectText) .. " " .. tostring(prompt.Name))
+    local blacklist = {
+        "shop", "robux", "buy", "purchase", "store", "gamepass", "premium", "donate",
+        "wheel", "spin", "craft", "trade", "lock base", "lock", "unlock base", "unlock"
+    }
+    for _, word in ipairs(blacklist) do
+        if string.find(txt, word) then
+            return false
+        end
+    end
+    return true
+end
 
 for _, obj in pairs(workspace:GetDescendants()) do
     if obj:IsA("ProximityPrompt") then
@@ -519,11 +533,8 @@ task.spawn(function()
                     local prompt = cachedPrompts[i]
                     if not prompt or not prompt.Parent then
                         table.remove(cachedPrompts, i)
-                    elseif prompt.Enabled then
+                    elseif prompt.Enabled and isPromptSafe(prompt) then 
                         local part = prompt.Parent
-                        
-                        prompt.RequiresLineOfSight = false
-                        prompt.HoldDuration = 0 
                         
                         local promptPos = nil
                         if part:IsA("BasePart") then
@@ -539,18 +550,31 @@ task.spawn(function()
                         if promptPos then
                             local distance = (promptPos - hrp.Position).Magnitude
                             if distance <= prompt.MaxActivationDistance + 5 then
-                                pcall(function()
-                                    if type(fireproximityprompt) == "function" then
-                                        fireproximityprompt(prompt, 1)
-                                        fireproximityprompt(prompt, 0)
-                                    end
-                                end)
-                                
-                                pcall(function()
-                                    prompt:InputHoldBegin()
-                                    task.wait() 
-                                    prompt:InputHoldEnd()
-                                end)
+                                -- Anti-Spam: Guarantee 0.15s hold without breaking the prompt state
+                                if not prompt:GetAttribute("S4_Stealing") then
+                                    prompt:SetAttribute("S4_Stealing", true)
+                                    
+                                    task.spawn(function()
+                                        pcall(function()
+                                            prompt.RequiresLineOfSight = false
+                                            prompt.HoldDuration = 0 
+                                            task.wait(0.05) -- Let local properties replicate
+                                            
+                                            if type(fireproximityprompt) == "function" then
+                                                fireproximityprompt(prompt, 1)
+                                                fireproximityprompt(prompt, 0)
+                                            end
+                                            
+                                            -- Solid, guaranteed simulated hold to bypass input cancellations
+                                            prompt:InputHoldBegin()
+                                            task.wait(0.15) 
+                                            prompt:InputHoldEnd()
+                                        end)
+                                        
+                                        task.wait(0.5) -- Cooldown before attempting this specific prompt again
+                                        if prompt then prompt:SetAttribute("S4_Stealing", nil) end
+                                    end)
+                                end
                             end
                         end
                     end
@@ -659,7 +683,7 @@ end
 
 local function handleBoosterToggle(state)
     if not state and Player.Character and Player.Character:FindFirstChild("Humanoid") then
-        -- Optional
+        Player.Character.Humanoid.WalkSpeed = 16
     end
 end
 
