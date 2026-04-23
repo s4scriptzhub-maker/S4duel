@@ -1,5 +1,5 @@
 -- [[ S4DUELS: ULTIMATE BRAINROT ELITE EDITION ]] --
--- [[ COMPACT MOBILE GUI, ANTI-TRIP PHYSICS, UNIVERSAL AUTO-STEAL ]] --
+-- [[ COMPACT MOBILE GUI, ANTI-TRIP PHYSICS, AGGRESSIVE WELD CARRY DETECTION ]] --
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -226,7 +226,7 @@ local function createStyledFrame(name, size, pos, accentColor, parent)
     frame.Name = name
     frame.Size = size
     frame.Position = pos
-    frame.BackgroundColor3 = BG_COLOR
+    frame.BackgroundColor = BG_COLOR
     frame.BackgroundTransparency = 0.60 
     frame.BorderSizePixel = 0
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
@@ -273,8 +273,8 @@ returnBtn.Size = UDim2.new(1, 0, 1, 0); returnBtn.BackgroundTransparency = 1
 returnBtn.Text = "S4HUB"; returnBtn.TextColor3 = Color3.new(1, 1, 1); returnBtn.Font = Enum.Font.GothamBold; returnBtn.TextSize = 14
 returnFrame.Visible = false
 
--- [4] S4HUB MAIN SETTINGS MENU
-local hubMenu, hubMenuStroke = createStyledFrame("S4HUB_Menu", UDim2.new(0, 340, 0, 400), UDim2.new(0.5, -170, 0.5, -200), SHINY_PURPLE)
+-- [4] S4HUB MAIN SETTINGS MENU (COMPACT FOR MOBILE: 320x320)
+local hubMenu, hubMenuStroke = createStyledFrame("S4HUB_Menu", UDim2.new(0, 320, 0, 320), UDim2.new(0.5, -160, 0.5, -160), SHINY_PURPLE)
 hubMenu.Visible = false
 
 local hubTitle = Instance.new("TextLabel", hubMenu)
@@ -303,7 +303,7 @@ serverTab.BackgroundTransparency = 1; serverTab.Text = "SERVER"; serverTab.Font 
 
 local s4duelsScroll = Instance.new("ScrollingFrame", hubMenu)
 s4duelsScroll.Size = UDim2.new(1, -20, 1, -125); s4duelsScroll.Position = UDim2.new(0, 10, 0, 80)
-s4duelsScroll.BackgroundTransparency = 1; s4duelsScroll.CanvasSize = UDim2.new(0, 0, 1.4, 0); s4duelsScroll.ScrollBarThickness = 3; s4duelsScroll.ScrollBarImageColor3 = SHINY_PURPLE
+s4duelsScroll.BackgroundTransparency = 1; s4duelsScroll.CanvasSize = UDim2.new(0, 0, 1.6, 0); s4duelsScroll.ScrollBarThickness = 3; s4duelsScroll.ScrollBarImageColor3 = SHINY_PURPLE
 local s4Layout = Instance.new("UIGridLayout", s4duelsScroll)
 s4Layout.CellSize = UDim2.new(0.48, 0, 0, 35); s4Layout.CellPadding = UDim2.new(0, 8, 0, 8)
 Instance.new("UIPadding", s4duelsScroll).PaddingLeft = UDim.new(0, 2)
@@ -495,7 +495,7 @@ end
 -- ========== FEATURE LOGIC & PHYSICS =======
 -- ==========================================
 
--- === UNIVERSAL AUTO-STEAL AURA ENGINE ===
+-- === AGGRESSIVE AUTO-STEAL AURA ENGINE ===
 local cachedPrompts = {}
 
 for _, obj in pairs(workspace:GetDescendants()) do
@@ -520,40 +520,39 @@ task.spawn(function()
                     if not prompt or not prompt.Parent then
                         table.remove(cachedPrompts, i)
                     elseif prompt.Enabled then
+                        local part = prompt.Parent
                         
-                        -- Forcefully remove invisible hitboxes blocking the interaction
                         prompt.RequiresLineOfSight = false
                         prompt.HoldDuration = 0 
                         
-                        -- Accurately get position regardless of what the prompt is parented to
                         local promptPos = nil
-                        local pParent = prompt.Parent
-                        if pParent:IsA("BasePart") then
-                            promptPos = pParent.Position
-                        elseif pParent:IsA("Attachment") then
-                            promptPos = pParent.WorldPosition
-                        elseif pParent:IsA("Model") and pParent.PrimaryPart then
-                            promptPos = pParent.PrimaryPart.Position
-                        elseif pParent:IsA("Model") then
-                            promptPos = pParent:GetPivot().Position
+                        if part:IsA("BasePart") then
+                            promptPos = part.Position
+                        elseif part:IsA("Attachment") then
+                            promptPos = part.WorldPosition
+                        elseif part:IsA("Model") and part.PrimaryPart then
+                            promptPos = part.PrimaryPart.Position
+                        elseif part:IsA("Model") then
+                            promptPos = part:GetPivot().Position
                         end
                         
                         if promptPos then
                             local distance = (promptPos - hrp.Position).Magnitude
-                            
                             if distance <= prompt.MaxActivationDistance + 5 then
                                 pcall(function()
                                     if type(fireproximityprompt) == "function" then
                                         fireproximityprompt(prompt, 1)
                                         fireproximityprompt(prompt, 0)
                                     end
+                                end)
+                                
+                                pcall(function()
                                     prompt:InputHoldBegin()
                                     task.wait() 
                                     prompt:InputHoldEnd()
                                 end)
                             end
                         end
-                        
                     end
                 end
             end
@@ -660,15 +659,68 @@ end
 
 local function handleBoosterToggle(state)
     if not state and Player.Character and Player.Character:FindFirstChild("Humanoid") then
-        Player.Character.Humanoid.WalkSpeed = 16
+        -- Safe optional reset
     end
 end
 
+-- === HYBRID CARRY DETECTION (ULTRA-AGGRESSIVE HIERARCHY/WELD SCANNER) ===
 local function isCarryingBrainrot()
-    local success, isEnabled = pcall(function()
-        return StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.Backpack)
-    end)
-    if success and isEnabled == false then return true end
+    local char = Player.Character
+    if not char then return false end
+    
+    -- 1. Standard Tool check
+    if char:FindFirstChildOfClass("Tool") then return true end
+    
+    -- 2. Model Trap Check (Any non-standard Model parented directly to character)
+    for _, obj in pairs(char:GetChildren()) do
+        if obj:IsA("Model") then
+            return true
+        end
+        
+        -- 3. Value Sniffing (Detects internal tracking values set by the game)
+        if obj:IsA("BoolValue") or obj:IsA("ObjectValue") then
+            local name = string.lower(obj.Name)
+            if string.find(name, "carry") or string.find(name, "hold") or string.find(name, "stealing") or string.find(name, "brainrot") then
+                if obj:IsA("BoolValue") and obj.Value == true then return true end
+                if obj:IsA("ObjectValue") and obj.Value ~= nil then return true end
+            end
+        end
+    end
+    
+    -- 4. Deep Weld Check (If a physical object is welded to the Torso or Root)
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+    local coreParts = {hrp, torso}
+    
+    for _, corePart in pairs(coreParts) do
+        if corePart then
+            for _, child in pairs(corePart:GetChildren()) do
+                if child:IsA("Weld") or child:IsA("WeldConstraint") or child:IsA("Motor6D") then
+                    local p0 = child.Part0
+                    local p1 = child.Part1
+                    local attached = nil
+                    
+                    if p0 == corePart then attached = p1 else attached = p0 end
+                    
+                    if attached and attached.Parent then
+                        -- Welded to something outside the character (not an accessory)
+                        if attached.Parent ~= char and not attached.Parent:IsA("Accessory") then
+                            return true
+                        end
+                        
+                        -- Welded to a foreign part inside the character
+                        if attached.Parent == char then
+                            local name = string.lower(attached.Name)
+                            if not string.find(name, "torso") and not string.find(name, "head") and not string.find(name, "arm") and not string.find(name, "leg") and not string.find(name, "root") then
+                                return true
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
     return false
 end
 
