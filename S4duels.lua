@@ -42,8 +42,8 @@ local SpeedConfigFile = "S4_ELITE_SPEED.json"
 -- === GLOBAL STATE MANAGEMENT ===
 local AdvancedSettings = { 
     BatSpeed = 55, 
-    FlySpeed = 55,
-    FlyCarrySpeed = 11, 
+    FlySpeed = 54,          -- Updated Default
+    FlyCarrySpeed = 25,     -- Updated Default
     WalkSpeed = 55, 
     CarrySpeed = 29 
 }
@@ -260,6 +260,7 @@ local function createStyledFrame(name, size, pos, accentColor, parent)
     frame.Size = size
     frame.Position = pos
     frame.BackgroundColor3 = BG_DEEP
+    frame.BackgroundTransparency = 0.45 
     frame.BorderSizePixel = 0
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
     
@@ -296,7 +297,7 @@ statsLabel.Text = "FPS: -- | PING: --ms"; statsLabel.TextColor3 = Color3.fromRGB
 
 local openSettingsBtn = Instance.new("TextButton", mainHeader)
 openSettingsBtn.Size = UDim2.new(0, 120, 0, 26); openSettingsBtn.Position = UDim2.new(0.5, -60, 1, 6)
-openSettingsBtn.Text = "LAUNCH HUB"; openSettingsBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30); openSettingsBtn.TextColor3 = TEXT_MAIN; openSettingsBtn.Font = Enum.Font.GothamBold; openSettingsBtn.TextSize = 11
+openSettingsBtn.Text = "S4HUB"; openSettingsBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30); openSettingsBtn.BackgroundTransparency = 0.4; openSettingsBtn.TextColor3 = TEXT_MAIN; openSettingsBtn.Font = Enum.Font.GothamBold; openSettingsBtn.TextSize = 11
 Instance.new("UICorner", openSettingsBtn).CornerRadius = UDim.new(0, 6)
 local osbStroke = Instance.new("UIStroke", openSettingsBtn); osbStroke.Thickness = 1.5; osbStroke.Color = PRIMARY_ACCENT
 
@@ -304,7 +305,7 @@ local osbStroke = Instance.new("UIStroke", openSettingsBtn); osbStroke.Thickness
 local lockFrame, lockStroke = createStyledFrame("LockGUI", UDim2.new(0, 85, 0, 35), UDim2.new(0.5, -235, 0, 35), SECONDARY_ACCENT)
 local lockBtn = Instance.new("TextButton", lockFrame)
 lockBtn.Size = UDim2.new(1, 0, 1, 0); lockBtn.BackgroundTransparency = 1
-lockBtn.Text = "UNLOCK"; lockBtn.TextColor3 = TEXT_MAIN; lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 11
+lockBtn.Text = "LOCK GUI"; lockBtn.TextColor3 = TEXT_MAIN; lockBtn.Font = Enum.Font.GothamBold; lockBtn.TextSize = 11
 
 -- [3] TOP-LEFT RETURN BUTTON 
 local returnFrame, returnStroke = createStyledFrame("ReturnHUB", UDim2.new(0, 120, 0, 42), UDim2.new(0, 15, 0, 15), SECONDARY_ACCENT)
@@ -329,7 +330,7 @@ applyShinyGradient(Instance.new("UIGradient", titleSeparator), PRIMARY_ACCENT, C
 
 local closeHubBtn = Instance.new("TextButton", hubMenu)
 closeHubBtn.Size = UDim2.new(0, 26, 0, 26); closeHubBtn.Position = UDim2.new(1, -36, 0, 10)
-closeHubBtn.Text = "X"; closeHubBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 25); closeHubBtn.TextColor3 = TEXT_MAIN; closeHubBtn.Font = Enum.Font.GothamBlack; closeHubBtn.TextSize = 13
+closeHubBtn.Text = "X"; closeHubBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 25); closeHubBtn.BackgroundTransparency = 0.4; closeHubBtn.TextColor3 = TEXT_MAIN; closeHubBtn.Font = Enum.Font.GothamBlack; closeHubBtn.TextSize = 13
 Instance.new("UICorner", closeHubBtn).CornerRadius = UDim.new(0, 6)
 Instance.new("UIStroke", closeHubBtn).Color = Color3.fromRGB(255, 60, 80)
 
@@ -391,7 +392,7 @@ switchTab("S4DUELS")
 
 local globalSaveBtn = Instance.new("TextButton", hubMenu)
 globalSaveBtn.Size = UDim2.new(0.9, 0, 0, 36); globalSaveBtn.Position = UDim2.new(0.05, 0, 1, -42)
-globalSaveBtn.Text = "SAVE SETTINGS"; globalSaveBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 22); globalSaveBtn.TextColor3 = TEXT_MAIN; globalSaveBtn.Font = Enum.Font.GothamBlack; globalSaveBtn.TextSize = 13
+globalSaveBtn.Text = "SAVE SETTINGS"; globalSaveBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 22); globalSaveBtn.BackgroundTransparency = 0.4; globalSaveBtn.TextColor3 = TEXT_MAIN; globalSaveBtn.Font = Enum.Font.GothamBlack; globalSaveBtn.TextSize = 13
 Instance.new("UICorner", globalSaveBtn).CornerRadius = UDim.new(0, 8)
 local gsbStroke = Instance.new("UIStroke", globalSaveBtn); gsbStroke.Thickness = 2; applyShinyGradient(gsbStroke, SECONDARY_ACCENT, Color3.new(1,1,1))
 
@@ -406,7 +407,7 @@ local function createSettingsMenu(name, width, height, titleText)
     
     local btn = Instance.new("TextButton", menu)
     btn.Size = UDim2.new(0.85, 0, 0, 32); btn.Position = UDim2.new(0.075, 0, 1, -40)
-    btn.Text = "APPLY"; btn.BackgroundColor3 = Color3.fromRGB(20, 20, 30); btn.TextColor3 = TEXT_MAIN; btn.Font = Enum.Font.GothamBold; btn.TextSize = 12; btn.ZIndex = 51
+    btn.Text = "APPLY"; btn.BackgroundColor3 = Color3.fromRGB(20, 20, 30); btn.BackgroundTransparency = 0.4; btn.TextColor3 = TEXT_MAIN; btn.Font = Enum.Font.GothamBold; btn.TextSize = 12; btn.ZIndex = 51
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     Instance.new("UIStroke", btn).Color = SECONDARY_ACCENT; Instance.new("UIStroke", btn).Thickness = 1.5
     
@@ -497,7 +498,7 @@ local function createSyncedButton(text, isToggle, parent, position, callback)
 
     if parent == s4duelsScroll or parent == serverScroll then
         frame = Instance.new("Frame", parent)
-        frame.BackgroundColor3 = BG_DEEP; frame.BorderSizePixel = 0
+        frame.BackgroundColor3 = BG_DEEP; frame.BackgroundTransparency = 0.45; frame.BorderSizePixel = 0
         Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
         stroke = Instance.new("UIStroke", frame); stroke.Thickness = 1.5; stroke.Color = Color3.new(1,1,1)
     else
@@ -506,7 +507,13 @@ local function createSyncedButton(text, isToggle, parent, position, callback)
     end
 
     local actionBtn = Instance.new("TextButton", frame)
-    actionBtn.Size = UDim2.new(1, 0, 1, 0); actionBtn.BackgroundTransparency = 1
+    -- FIXED: Leaves room for the gear icon so it doesn't overlap on mobile
+    if text == "Bat Fucker" or text == "Fly" or text == "S4BOOSTER" then
+        actionBtn.Size = UDim2.new(1, -32, 1, 0)
+    else
+        actionBtn.Size = UDim2.new(1, 0, 1, 0)
+    end
+    actionBtn.BackgroundTransparency = 1
     actionBtn.Text = text; actionBtn.TextColor3 = TEXT_MAIN; actionBtn.Font = Enum.Font.GothamBold; actionBtn.TextSize = 11
 
     if text == "Bat Fucker" then
@@ -689,8 +696,10 @@ local function applyFPSBoost()
     end
 
     if Terrain then
-        Terrain.WaterWaveSize = 0; Terrain.WaterWaveSpeed = 0
-        Terrain.WaterReflectance = 0; Terrain.WaterTransparency = 0
+        Terrain.WaterWaveSize = 0;
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0;
+        Terrain.WaterTransparency = 0
         Terrain.Decoration = false
     end
 end
@@ -812,7 +821,7 @@ createSyncedButton("Instant Steal", true, duelFuckerHUD, UDim2.new(0.85, 0, 0.5,
 
 makeInteractive(lockFrame, lockBtn, false, function()
     guiLocked = not guiLocked
-    lockBtn.Text = guiLocked and "LOCKED" or "UNLOCK"
+    lockBtn.Text = guiLocked and "LOCKED" or "LOCK GUI"
     TweenService:Create(lockStroke, TWEEN_INFO, {Color = guiLocked and Color3.fromRGB(255, 50, 80) or SECONDARY_ACCENT}):Play()
 end)
 
@@ -1017,7 +1026,8 @@ RunService.RenderStepped:Connect(function(deltaTime)
     frameCount = frameCount + 1
     if tick() - lastFpsUpdate >= 0.5 then
         local fps = math.floor(frameCount / (tick() - lastFpsUpdate))
-        local ping = math.floor(Player:GetNetworkPing() * 1000)
+        local ping = 0
+        pcall(function() ping = math.floor(Player:GetNetworkPing() * 1000) end)
         statsLabel.Text = string.format("FPS: %d | PING: %dms", fps, ping)
         frameCount = 0
         lastFpsUpdate = tick()
