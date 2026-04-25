@@ -1,16 +1,13 @@
--- [[ STANDALONE FLY FUCKER + ANTI-GRIEF CLOAK BYPASS ]] --
--- [[ MOBILE OPTIMIZED + V3 PHYSICS ]] --
+-- S4DUELS STANDALONE FLY FUCKER + ANTI-GRIEF CLOAK BYPASS
+-- MOBILE OPTIMIZED + UNEQUIP OVERRIDE + V3 PHYSICS
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
 
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-
-local TweenFast = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 while not Player do
     Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
@@ -18,7 +15,7 @@ while not Player do
 end
 
 local Config = {
-    FlySpeed = 115, -- Defaulting to the optimized OP speed
+    FlySpeed = 110, -- Defaulting to 110 OP Speed
     FlyCarrySpeed = 29
 }
 
@@ -35,9 +32,7 @@ local Theme = {
     Danger = Color3.fromRGB(255, 50, 70)
 }
 
--- ==========================================
--- ========== GUI CLEANUP & SETUP ===========
--- ==========================================
+-- GUI CLEANUP & SETUP
 local GUI_NAME = "Standalone_FlyFucker_HUD"
 pcall(function()
     for _, v in pairs(CoreGui:GetChildren()) do if v.Name == GUI_NAME then v:Destroy() end end
@@ -72,9 +67,7 @@ local function applyShinyGradient(parent, color1)
     return gradient
 end
 
--- ==========================================
--- ====== SMART DRAG VS CLICK ENGINE ========
--- ==========================================
+-- SMART DRAG VS CLICK ENGINE
 local function MakeFloatingDraggable(frame, button, onClick)
     local dragging = false
     local hasMoved = false
@@ -114,14 +107,12 @@ local function MakeFloatingDraggable(frame, button, onClick)
     end)
 end
 
--- ==========================================
--- ========== FLOATING FLY BUTTON ===========
--- ==========================================
+-- FLOATING FLY BUTTON
 local Frame = Instance.new("Frame", ScreenGui)
 Frame.Size = UDim2.new(0, 150, 0, 44)
 Frame.Position = UDim2.new(0.5, -75, 0.8, 0)
 Frame.BackgroundColor3 = Theme.Background
-Frame.BackgroundTransparency = 0.55 -- Higher transparency for Glass effect
+Frame.BackgroundTransparency = 0.55 -- Glass effect
 Frame.BorderSizePixel = 0
 Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
 
@@ -145,9 +136,7 @@ GearBtn.BackgroundTransparency = 1
 GearBtn.Text = "⚙️"
 GearBtn.TextSize = 16
 
--- ==========================================
--- ========== SPEED SETTINGS MENU ===========
--- ==========================================
+-- SPEED SETTINGS MENU
 local MenuFly = Instance.new("Frame", ScreenGui)
 MenuFly.Size = UDim2.new(0, 260, 0, 160)
 MenuFly.Position = UDim2.new(0.5, -130, 0.5, -80)
@@ -240,38 +229,45 @@ end
 addSpeedSlider(MenuFly, 45, "Fly Speed", "FlySpeed", 20, 125)
 addSpeedSlider(MenuFly, 105, "Fly Carry Speed", "FlyCarrySpeed", 0, 50) 
 
--- ==========================================
--- ========== CLOAK HELPER FUNCTION =========
--- ==========================================
+-- CLOAK HELPER FUNCTION
 local function EquipAndActivateCloak(char)
     if not char then return end
-    local cloak = Player.Backpack:FindFirstChild("Invisibility Cloak") or char:FindFirstChild("Invisibility Cloak")
-    if cloak then
-        cloak.Parent = char
-        -- Small delay to ensure the engine registers the equip before tapping
-        task.spawn(function()
-            task.wait(0.1)
+    
+    task.spawn(function()
+        local hum = char:FindFirstChild("Humanoid")
+        local currentTool = char:FindFirstChildOfClass("Tool")
+        
+        if currentTool and currentTool.Name == "Invisibility Cloak" then
+            pcall(function() currentTool:Activate() end)
+            return
+        end
+        
+        if currentTool and hum then
+            pcall(function() hum:UnequipTools() end)
+            task.wait(0.05) 
+        end
+
+        local cloak = Player.Backpack:FindFirstChild("Invisibility Cloak") or char:FindFirstChild("Invisibility Cloak")
+        if cloak then
+            cloak.Parent = char
+            task.wait(0.1) 
             if cloak.Parent == char then
                 pcall(function() cloak:Activate() end)
             end
-        end)
-    end
+        end
+    end)
 end
 
--- ==========================================
--- ========== BUTTON LOGIC ==================
--- ==========================================
+-- BUTTON LOGIC
 GearBtn.Activated:Connect(function()
     MenuFly.Visible = not MenuFly.Visible
 end)
 
--- Main Toggle (Uses Smart Drag Engine)
 MakeFloatingDraggable(Frame, FlyBtn, function()
     FlyEnabled = not FlyEnabled
     
     local char = Player.Character
     if FlyEnabled then
-        -- BRUTE FORCE EQUIP & AUTO-ACTIVATE CLOAK
         if char and not Player:GetAttribute("Stealing") then
             EquipAndActivateCloak(char)
         end
@@ -279,7 +275,6 @@ MakeFloatingDraggable(Frame, FlyBtn, function()
         FlyBtn.TextColor3 = Theme.Success
         TweenService:Create(Frame, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.3}):Play()
     else
-        -- BRUTE FORCE UNEQUIP CLOAK
         if char then
             local cloak = char:FindFirstChild("Invisibility Cloak")
             if cloak then
@@ -293,9 +288,7 @@ MakeFloatingDraggable(Frame, FlyBtn, function()
     end
 end)
 
--- ==========================================
--- ========== FLY PHYSICS ENGINE ============
--- ==========================================
+-- FLY PHYSICS ENGINE
 local function clearPhysics(char)
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -345,14 +338,11 @@ RunService.Heartbeat:Connect(function()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hum or not hrp then return end
 
-    -- DYNAMIC ANTI-GRIEF CARRY TRACKER
     local isCarrying = Player:GetAttribute("Stealing") or false
 
     if FlyEnabled then
         hum.PlatformStand = true
         
-        -- If we just dropped the brainrot (due to griefing or scoring) 
-        -- we instantly re-equip the cloak to prevent the anti-cheat rubberband
         if not isCarrying and lastCarryState then
             EquipAndActivateCloak(char)
         end
@@ -363,7 +353,6 @@ RunService.Heartbeat:Connect(function()
 
         local moveDir = hum.MoveDirection
         if moveDir.Magnitude > 0 then
-            -- SMART CARRY DETECTION 
             local speed = isCarrying and Config.FlyCarrySpeed or Config.FlySpeed
             
             local flatLook = Vector3.new(Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z)
