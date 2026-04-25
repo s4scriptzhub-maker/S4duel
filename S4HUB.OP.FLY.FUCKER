@@ -1,0 +1,398 @@
+-- [[ STANDALONE FLY FUCKER + ANTI-GRIEF CLOAK BYPASS ]] --
+-- [[ MOBILE OPTIMIZED + V3 PHYSICS ]] --
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local TweenFast = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+while not Player do
+    Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+    Player = Players.LocalPlayer
+end
+
+local Config = {
+    FlySpeed = 115, -- Defaulting to the optimized OP speed
+    FlyCarrySpeed = 29
+}
+
+local FlyEnabled = false
+local lastCarryState = false
+
+-- Aesthetics
+local Theme = {
+    Background = Color3.fromRGB(25, 10, 40),      
+    PanelBg = Color3.fromRGB(45, 20, 65),         
+    PurpleNeon = Color3.fromRGB(210, 50, 255),    
+    TextWhite = Color3.fromRGB(245, 245, 250),
+    Success = Color3.fromRGB(40, 255, 120),
+    Danger = Color3.fromRGB(255, 50, 70)
+}
+
+-- ==========================================
+-- ========== GUI CLEANUP & SETUP ===========
+-- ==========================================
+local GUI_NAME = "Standalone_FlyFucker_HUD"
+pcall(function()
+    for _, v in pairs(CoreGui:GetChildren()) do if v.Name == GUI_NAME then v:Destroy() end end
+    if Player:FindFirstChild("PlayerGui") then
+        for _, v in pairs(Player.PlayerGui:GetChildren()) do if v.Name == GUI_NAME then v:Destroy() end end
+    end
+end)
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = GUI_NAME
+ScreenGui.ResetOnSpawn = false
+pcall(function() ScreenGui.Parent = gethui and gethui() or CoreGui end)
+if not ScreenGui.Parent then ScreenGui.Parent = Player:WaitForChild("PlayerGui") end
+
+-- Helper: Shiny Gradient
+local function applyShinyGradient(parent, color1)
+    local gradient = Instance.new("UIGradient", parent)
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, color1),
+        ColorSequenceKeypoint.new(0.4, color1),
+        ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)), 
+        ColorSequenceKeypoint.new(0.6, color1),
+        ColorSequenceKeypoint.new(1, color1)
+    })
+    task.spawn(function()
+        local rot = 0
+        RunService.RenderStepped:Connect(function(dt)
+            rot = (rot + (dt * 150)) % 360 
+            gradient.Rotation = rot
+        end)
+    end)
+    return gradient
+end
+
+-- ==========================================
+-- ====== SMART DRAG VS CLICK ENGINE ========
+-- ==========================================
+local function MakeFloatingDraggable(frame, button, onClick)
+    local dragging = false
+    local hasMoved = false
+    local dragInput = nil
+    local dragStart, startPos
+
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging then return end 
+            dragging = true
+            hasMoved = false
+            dragInput = input
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    dragInput = nil
+                    if not hasMoved and onClick then 
+                        onClick() 
+                    end
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then
+            local delta = input.Position - dragStart
+            -- Only move UI if finger drags more than 5 pixels (prevents misclicks)
+            if delta.Magnitude > 5 then
+                hasMoved = true
+                frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end
+    end)
+end
+
+-- ==========================================
+-- ========== FLOATING FLY BUTTON ===========
+-- ==========================================
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 150, 0, 44)
+Frame.Position = UDim2.new(0.5, -75, 0.8, 0)
+Frame.BackgroundColor3 = Theme.Background
+Frame.BackgroundTransparency = 0.55 -- Higher transparency for Glass effect
+Frame.BorderSizePixel = 0
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
+
+local Stroke = Instance.new("UIStroke", Frame)
+Stroke.Thickness = 1.8
+Stroke.Color = Theme.PurpleNeon 
+applyShinyGradient(Stroke, Theme.PurpleNeon)
+
+local FlyBtn = Instance.new("TextButton", Frame)
+FlyBtn.Size = UDim2.new(1, -35, 1, 0) 
+FlyBtn.BackgroundTransparency = 1
+FlyBtn.Text = "FLY FUCKER"
+FlyBtn.TextColor3 = Theme.TextWhite
+FlyBtn.Font = Enum.Font.GothamBlack
+FlyBtn.TextSize = 13
+
+local GearBtn = Instance.new("TextButton", Frame)
+GearBtn.Size = UDim2.new(0, 35, 1, 0)
+GearBtn.Position = UDim2.new(1, -35, 0, 0)
+GearBtn.BackgroundTransparency = 1
+GearBtn.Text = "⚙️"
+GearBtn.TextSize = 16
+
+-- ==========================================
+-- ========== SPEED SETTINGS MENU ===========
+-- ==========================================
+local MenuFly = Instance.new("Frame", ScreenGui)
+MenuFly.Size = UDim2.new(0, 260, 0, 160)
+MenuFly.Position = UDim2.new(0.5, -130, 0.5, -80)
+MenuFly.BackgroundColor3 = Theme.Background
+MenuFly.BackgroundTransparency = 0.4 -- Glass effect
+MenuFly.Visible = false
+Instance.new("UICorner", MenuFly).CornerRadius = UDim.new(0, 6)
+
+local mStroke = Instance.new("UIStroke", MenuFly)
+mStroke.Thickness = 1.8
+applyShinyGradient(mStroke, Theme.PurpleNeon)
+
+local title = Instance.new("TextLabel", MenuFly)
+title.Size = UDim2.new(1, 0, 0, 35)
+title.Position = UDim2.new(0, 15, 0, 5)
+title.Text = "FLY SPEEDS (OP)"
+title.TextColor3 = Theme.PurpleNeon
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 14
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.BackgroundTransparency = 1
+
+local closeBtn = Instance.new("TextButton", MenuFly)
+closeBtn.Size = UDim2.new(0, 35, 0, 35)
+closeBtn.Position = UDim2.new(1, -40, 0, 5)
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Theme.Danger
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 18
+closeBtn.BackgroundTransparency = 1
+closeBtn.Activated:Connect(function() MenuFly.Visible = false end)
+
+local menuDragBtn = Instance.new("TextButton", MenuFly)
+menuDragBtn.Size = UDim2.new(1, -40, 0, 35)
+menuDragBtn.BackgroundTransparency = 1
+menuDragBtn.Text = ""
+MakeFloatingDraggable(MenuFly, menuDragBtn)
+
+local function addSpeedSlider(menu, yPos, labelStr, varKey, minVal, maxVal)
+    local label = Instance.new("TextLabel", menu)
+    label.Size = UDim2.new(1, -30, 0, 20)
+    label.Position = UDim2.new(0, 15, 0, yPos)
+    label.BackgroundTransparency = 1
+    label.Text = labelStr .. ": " .. Config[varKey]
+    label.TextColor3 = Theme.TextWhite
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+
+    local track = Instance.new("TextButton", menu)
+    track.Size = UDim2.new(1, -30, 0, 12) 
+    track.Position = UDim2.new(0, 15, 0, yPos + 24)
+    track.BackgroundColor3 = Color3.fromRGB(20, 5, 30)
+    track.Text = ""
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    local initRel = (Config[varKey] - minVal) / (maxVal - minVal)
+    
+    local fill = Instance.new("Frame", track)
+    fill.Size = UDim2.new(initRel, 0, 1, 0)
+    fill.BackgroundColor3 = Theme.PurpleNeon
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local dragging = false
+    local dragInput = nil
+    
+    local function update(input)
+        local rel = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        local val = math.floor(minVal + rel * (maxVal - minVal))
+        Config[varKey] = val
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        label.Text = labelStr .. ": " .. val
+    end
+    
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true 
+            dragInput = input 
+            update(input)
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false dragInput = nil end
+            end)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then update(input) end
+    end)
+end
+
+addSpeedSlider(MenuFly, 45, "Fly Speed", "FlySpeed", 20, 125)
+addSpeedSlider(MenuFly, 105, "Fly Carry Speed", "FlyCarrySpeed", 0, 50) 
+
+-- ==========================================
+-- ========== CLOAK HELPER FUNCTION =========
+-- ==========================================
+local function EquipAndActivateCloak(char)
+    if not char then return end
+    local cloak = Player.Backpack:FindFirstChild("Invisibility Cloak") or char:FindFirstChild("Invisibility Cloak")
+    if cloak then
+        cloak.Parent = char
+        -- Small delay to ensure the engine registers the equip before tapping
+        task.spawn(function()
+            task.wait(0.1)
+            if cloak.Parent == char then
+                pcall(function() cloak:Activate() end)
+            end
+        end)
+    end
+end
+
+-- ==========================================
+-- ========== BUTTON LOGIC ==================
+-- ==========================================
+GearBtn.Activated:Connect(function()
+    MenuFly.Visible = not MenuFly.Visible
+end)
+
+-- Main Toggle (Uses Smart Drag Engine)
+MakeFloatingDraggable(Frame, FlyBtn, function()
+    FlyEnabled = not FlyEnabled
+    
+    local char = Player.Character
+    if FlyEnabled then
+        -- BRUTE FORCE EQUIP & AUTO-ACTIVATE CLOAK
+        if char and not Player:GetAttribute("Stealing") then
+            EquipAndActivateCloak(char)
+        end
+
+        FlyBtn.TextColor3 = Theme.Success
+        TweenService:Create(Frame, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.3}):Play()
+    else
+        -- BRUTE FORCE UNEQUIP CLOAK
+        if char then
+            local cloak = char:FindFirstChild("Invisibility Cloak")
+            if cloak then
+                pcall(function() cloak:Deactivate() end)
+                cloak.Parent = Player.Backpack
+            end
+        end
+
+        FlyBtn.TextColor3 = Theme.TextWhite
+        TweenService:Create(Frame, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = 0.55}):Play()
+    end
+end)
+
+-- ==========================================
+-- ========== FLY PHYSICS ENGINE ============
+-- ==========================================
+local function clearPhysics(char)
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChild("Humanoid")
+    if hrp then
+        local att = hrp:FindFirstChild("Fly_Attachment")
+        local lv = hrp:FindFirstChild("Fly_LinearVelocity")
+        local ao = hrp:FindFirstChild("Fly_AlignOrientation")
+        if att then att:Destroy() end
+        if lv then lv:Destroy() end
+        if ao then ao:Destroy() end
+    end
+    if hum then hum.PlatformStand = false end
+end
+
+local function getPhysics(hrp)
+    local att = hrp:FindFirstChild("Fly_Attachment")
+    if not att then att = Instance.new("Attachment", hrp) att.Name = "Fly_Attachment" end
+    
+    local lv = hrp:FindFirstChild("Fly_LinearVelocity")
+    if not lv then
+        lv = Instance.new("LinearVelocity", hrp)
+        lv.Name = "Fly_LinearVelocity"
+        lv.Attachment0 = att
+        lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
+        lv.MaxForce = 1e5
+        lv.RelativeTo = Enum.ActuatorRelativeTo.World
+    end
+    
+    local ao = hrp:FindFirstChild("Fly_AlignOrientation")
+    if not ao then
+        ao = Instance.new("AlignOrientation", hrp)
+        ao.Name = "Fly_AlignOrientation"
+        ao.Attachment0 = att
+        ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+        ao.RigidityEnabled = true
+    end
+    return lv, ao
+end
+
+local VELOCITY_LERP_ALPHA = 0.15 
+
+RunService.Heartbeat:Connect(function()
+    local char = Player.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp then return end
+
+    -- DYNAMIC ANTI-GRIEF CARRY TRACKER
+    local isCarrying = Player:GetAttribute("Stealing") or false
+
+    if FlyEnabled then
+        hum.PlatformStand = true
+        
+        -- If we just dropped the brainrot (due to griefing or scoring) 
+        -- we instantly re-equip the cloak to prevent the anti-cheat rubberband
+        if not isCarrying and lastCarryState then
+            EquipAndActivateCloak(char)
+        end
+        
+        local lv, ao = getPhysics(hrp)
+        lv.MaxForce = 1e5
+        ao.CFrame = Camera.CFrame
+
+        local moveDir = hum.MoveDirection
+        if moveDir.Magnitude > 0 then
+            -- SMART CARRY DETECTION 
+            local speed = isCarrying and Config.FlyCarrySpeed or Config.FlySpeed
+            
+            local flatLook = Vector3.new(Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z)
+            if flatLook.Magnitude > 0 then flatLook = flatLook.Unit else flatLook = Vector3.new(0,0,1) end
+            
+            local forwardMag = moveDir:Dot(flatLook)
+            local rightMag = moveDir:Dot(Camera.CFrame.RightVector)
+            
+            local flyDir = (Camera.CFrame.LookVector * forwardMag + Camera.CFrame.RightVector * rightMag)
+            if flyDir.Magnitude > 0 then flyDir = flyDir.Unit end
+            
+            local targetVel = flyDir * speed
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
+        else
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.zero, VELOCITY_LERP_ALPHA)
+        end
+    else
+        clearPhysics(char)
+    end
+    
+    lastCarryState = isCarrying
+end)
+
+Player.CharacterAdded:Connect(function(char)
+    char:WaitForChild("Humanoid").Died:Connect(function()
+        FlyEnabled = false
+        lastCarryState = false
+        FlyBtn.TextColor3 = Theme.TextWhite
+        Frame.BackgroundColor3 = Theme.Background
+        Frame.BackgroundTransparency = 0.55
+    end)
+end)
