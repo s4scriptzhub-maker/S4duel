@@ -1,0 +1,283 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local configfilename = "evilsspeedconfig.json"
+
+-- default values
+local walkspeedvalue = 61
+local stealspeedvalue = 31
+
+-- load/save logic
+local function loadsettings()
+    if isfile and isfile(configfilename) then
+        local success, data = pcall(function() return HttpService:JSONDecode(readfile(configfilename)) end)
+        if success and data then
+            walkspeedvalue = data.walkspeed or walkspeedvalue
+            stealspeedvalue = data.stealspeed or stealspeedvalue
+        end
+    end
+end
+
+local function savesettings()
+    if writefile then
+        local data = {walkspeed = walkspeedvalue, stealspeed = stealspeedvalue}
+        writefile(configfilename, HttpService:JSONEncode(data))
+    end
+end
+
+loadsettings()
+
+-- waypoints
+local rightwaypoints = {
+    Vector3.new(-473.04, -6.99, 29.71), Vector3.new(-483.57, -5.10, 18.74),
+    Vector3.new(-475.00, -6.99, 26.43), Vector3.new(-474.67, -6.94, 105.48),
+}
+local leftwaypoints = {
+    Vector3.new(-472.49, -7.00, 90.62), Vector3.new(-484.62, -5.10, 100.37),
+    Vector3.new(-475.08, -7.00, 93.29), Vector3.new(-474.22, -6.96, 16.18),
+}
+
+local patrolmode = "none"
+local currentwaypoint = 1
+local minimized = false
+
+-- gui setup
+local sg = Instance.new("ScreenGui")
+sg.Name = "evilsautoduelgui"
+sg.Parent = player:WaitForChild("PlayerGui")
+sg.ResetOnSpawn = false
+
+-- exakte draggable logik (tweening)
+local function makedraggable(frame)
+    local dragging, draginput, dragstart, startpos
+
+    local function update(input)
+        local delta = input.Position - dragstart
+        local targetpos = UDim2.new(startpos.X.Scale, startpos.X.Offset + delta.X, startpos.Y.Scale, startpos.Y.Offset + delta.Y)
+        TweenService:Create(frame, TweenInfo.new(0.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = targetpos}):Play()
+    end
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragstart = input.Position
+            startpos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            draginput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == draginput and dragging then
+            update(input)
+        end
+    end)
+end
+
+-- helper for design (hintergrund etwas dunkler für kontrast)
+local function applydesign(frame, titletext)
+    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    frame.BackgroundTransparency = 0.15
+    frame.BorderSizePixel = 0
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 22)
+    corner.Parent = frame
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 2
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Transparency = 0.5
+    stroke.Parent = frame
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 50)
+    title.Position = UDim2.new(0, 0, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Text = titletext:lower()
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextSize = 22
+    title.Font = Enum.Font.FredokaOne
+    title.Parent = frame
+    return title
+end
+
+local function createbtn(text, pos, parent)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.85, 0, 0, 35)
+    btn.Position = pos
+    -- dunklere button farbe für besseren text-kontrast
+    btn.BackgroundColor3 = Color3.fromRGB(80, 80, 150)
+    btn.BackgroundTransparency = 0.1
+    btn.Text = text:lower()
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.FredokaOne
+    btn.TextSize = 16
+    btn.AutoButtonColor = false
+    btn.Parent = parent
+
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
+    local grad = Instance.new("UIGradient")
+    grad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 80, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 120, 255))
+    })
+    grad.Rotation = 45
+    grad.Parent = btn
+    
+    btn.MouseButton1Down:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0.8, 0, 0, 32)}):Play()
+    end)
+    btn.MouseButton1Up:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0.85, 0, 0, 35)}):Play()
+    end)
+    
+    return btn
+end
+
+-- main frame
+local mainframe = Instance.new("Frame")
+mainframe.Size = UDim2.new(0, 240, 0, 190)
+mainframe.Position = UDim2.new(0.5, -250, 0.5, -95)
+mainframe.Active = true
+mainframe.Parent = sg
+applydesign(mainframe, "free auto duel")
+makedraggable(mainframe)
+
+local minibtn = Instance.new("TextButton")
+minibtn.Size = UDim2.new(0, 30, 0, 30)
+minibtn.Position = UDim2.new(1, -40, 0, 10)
+minibtn.BackgroundTransparency = 1
+minibtn.Text = "-"
+minibtn.TextColor3 = Color3.new(1, 1, 1)
+minibtn.TextSize = 30
+minibtn.Font = Enum.Font.FredokaOne
+minibtn.ZIndex = 11
+minibtn.Parent = mainframe
+
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, 0, 1, -50)
+content.Position = UDim2.new(0, 0, 0, 50)
+content.BackgroundTransparency = 1
+content.Parent = mainframe
+
+local rightbtn = createbtn("auto play right", UDim2.new(0.075, 0, 0, 5), content)
+local leftbtn = createbtn("auto play left", UDim2.new(0.075, 0, 0, 50), content)
+local custombtn = createbtn("costumize speed", UDim2.new(0.075, 0, 0, 95), content)
+
+-- settings frame
+local customframe = Instance.new("Frame")
+customframe.Size = UDim2.new(0, 220, 0, 200)
+customframe.Position = UDim2.new(0.5, 20, 0.5, -100)
+customframe.Visible = false
+customframe.Active = true
+customframe.Parent = sg
+applydesign(customframe, "speed settings")
+makedraggable(customframe)
+
+local function createinput(pos, labeltext, defaultval)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.Position = pos
+    label.BackgroundTransparency = 1
+    label.Text = labeltext:lower()
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.FredokaOne
+    label.TextSize = 14
+    label.Parent = customframe
+
+    local input = Instance.new("TextBox")
+    input.Size = UDim2.new(0.8, 0, 0, 30)
+    input.Position = pos + UDim2.new(0.1, 0, 0, 20)
+    input.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    input.BackgroundTransparency = 0.4
+    input.Text = tostring(defaultval)
+    input.TextColor3 = Color3.fromRGB(255, 255, 255)
+    input.Font = Enum.Font.FredokaOne
+    input.TextSize = 16
+    input.Parent = customframe
+    Instance.new("UICorner", input).CornerRadius = UDim.new(0, 8)
+    return input
+end
+
+local walkinput = createinput(UDim2.new(0, 0, 0, 45), "walk speed", walkspeedvalue)
+local stealinput = createinput(UDim2.new(0, 0, 0, 100), "steal speed", stealspeedvalue)
+local savebtn = createbtn("save config", UDim2.new(0.075, 0, 0, 155), customframe)
+
+-- logic
+minibtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    local targetsize = minimized and UDim2.new(0, 240, 0, 50) or UDim2.new(0, 240, 0, 190)
+    TweenService:Create(mainframe, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = targetsize}):Play()
+    content.Visible = not minimized
+    minibtn.Text = minimized and "+" or "-"
+end)
+
+savebtn.MouseButton1Click:Connect(function()
+    walkspeedvalue = tonumber(walkinput.Text) or walkspeedvalue
+    stealspeedvalue = tonumber(stealinput.Text) or stealspeedvalue
+    savesettings()
+    savebtn.Text = "saved!"
+    task.wait(1)
+    savebtn.Text = "save config"
+end)
+
+custombtn.MouseButton1Click:Connect(function()
+    customframe.Visible = not customframe.Visible
+end)
+
+local function startmovement(mode)
+    patrolmode = mode
+    currentwaypoint = 1
+    local btn = (mode == "right") and rightbtn or leftbtn
+    btn.Text = "stop " .. mode
+end
+
+rightbtn.MouseButton1Click:Connect(function()
+    if patrolmode == "right" then patrolmode = "none" rightbtn.Text = "auto play right"
+    else startmovement("right") end
+end)
+
+leftbtn.MouseButton1Click:Connect(function()
+    if patrolmode == "left" then patrolmode = "none" leftbtn.Text = "auto play left"
+    else startmovement("left") end
+end)
+
+RunService.Heartbeat:Connect(function()
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root or patrolmode == "none" then return end
+    
+    local wps = patrolmode == "right" and rightwaypoints or leftwaypoints
+    local targetpos = wps[currentwaypoint]
+    local diff = (Vector3.new(targetpos.X, 0, targetpos.Z) - Vector3.new(root.Position.X, 0, root.Position.Z))
+    
+    if diff.Magnitude > 3 then
+        local speed = (currentwaypoint >= 3) and stealspeedvalue or walkspeedvalue
+        root.AssemblyLinearVelocity = Vector3.new(diff.Unit.X * speed, root.AssemblyLinearVelocity.Y, diff.Unit.Z * speed)
+    else
+        if currentwaypoint == #wps then
+            patrolmode = "none"
+            rightbtn.Text = "auto play right"
+            leftbtn.Text = "auto play left"
+        else
+            currentwaypoint = currentwaypoint + 1
+        end
+    end
+end)
+
+print("fuck the slut polar bears and save ai")
