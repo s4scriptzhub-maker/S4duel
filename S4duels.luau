@@ -524,11 +524,11 @@ end)
 CreateHubButton(TabServer, "Taunt Chat", nil, false, function()
     if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
         local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
-        if channel then channel:SendAsync("S4DUELS ON TOP") end
+        if channel then channel:SendAsync("S4DUELS BEST SCRIPT") end
     else
         local rme = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
         if rme and rme:FindFirstChild("SayMessageRequest") then 
-            rme.SayMessageRequest:FireServer("S4DUELS ON TOP", "All") 
+            rme.SayMessageRequest:FireServer("S4DUELS BEST SCRIPT", "All") 
         end
     end
 end)
