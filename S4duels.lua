@@ -1,5 +1,5 @@
--- [[ S4DUELS V5.0: EVIL HUB AESTHETICS ]] --
--- [[ AUTO DUEL AI + PURE AIM BYPASS + V3 PHYSICS ]] --
+-- [[ S4DUELS V6.3: EVIL HUB AESTHETICS ]] --
+-- [[ MOBILE TAP SPOOFER + ZERO LAG + V3 PHYSICS ]] --
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -23,10 +23,10 @@ end
 -- ========== GLOBAL CONFIGURATION ==========
 -- ==========================================
 local Config = {
-    BatSpeed = 55,
-    FlySpeed = 54,
-    FlyCarrySpeed = 25,
-    WalkSpeed = 55,
+    BatSpeed = 56,
+    FlySpeed = 56,
+    FlyCarrySpeed = 29,
+    WalkSpeed = 56,
     CarrySpeed = 29
 }
 
@@ -36,31 +36,12 @@ local States = {
     Fly = false,
     S4Booster = false,
     InstantSteal = false,
-    AutoDuel = false,
     ESP = false,
     InfJump = false,
     Unwalk = false,
     AntiRagdoll = false,
     DuelFuckerMode = false
 }
-
--- Duels Coordinates
-local POS_L = {
-    Vector3.new(-477.195556640625, -6.065402984619141, 92.81834411621094),
-    Vector3.new(-483.3575439453125, -5.037250518798828, 95.46223449707031),
-    Vector3.new(-476.0683898925781, -6.628986358642578, 93.31355285644531),
-    Vector3.new(-477.0289001464844, -6.148730278015137, 28.182092666625977)
-}
-
-local POS_R = {
-    Vector3.new(-475.7699890136719, -6.570000171661377, 26.760000228881836),
-    Vector3.new(-483.45159912109375, -5.037250518798828, 24.486499786376953),
-    Vector3.new(-476.4311828613281, -6.447589874267578, 26.645410537719727),
-    Vector3.new(-476.23638916015625, -6.6419878005981445, 91.72139739990234)
-}
-
-local BaseL_Center = POS_L[1]
-local BaseR_Center = POS_R[1]
 
 -- Premium Sharp Purplish Colors (Evil Hub Style)
 local Theme = {
@@ -84,71 +65,42 @@ local STROKE_THICKNESS = 1.2
 -- ========== UNIVERSAL SILENT AIM ==========
 -- ==========================================
 local CurrentAimTarget = nil 
+local CachedHoldingTool = false 
 
-local function isHoldingTool()
-    return Player.Character and Player.Character:FindFirstChildOfClass("Tool") ~= nil
-end
-
+-- 1. Index Hook (Covers PC Mouse)
 local OriginalIndex = nil
 OriginalIndex = hookmetamethod(game, "__index", function(self, key)
-    if not checkcaller() and States.AimFucker and CurrentAimTarget and isHoldingTool() and tostring(self) == "Mouse" then
-        if key == "Hit" then return CurrentAimTarget.CFrame end
-        if key == "Target" then return CurrentAimTarget end
-        if key == "UnitRay" then 
-            local camPos = Camera.CFrame.Position
-            return Ray.new(camPos, (CurrentAimTarget.Position - camPos).Unit) 
+    if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
+        if tostring(self) == "Mouse" then
+            if key == "Hit" then 
+                return CurrentAimTarget.CFrame 
+            end
+            if key == "Target" then 
+                return CurrentAimTarget 
+            end
+            if key == "UnitRay" then 
+                local camPos = Camera.CFrame.Position
+                return Ray.new(camPos, (CurrentAimTarget.Position - camPos).Unit) 
+            end
         end
     end
     return OriginalIndex(self, key)
 end)
 
+-- 2. Namecall Hook (Covers Mobile Taps / Camera Projections)
 local OriginalNamecall = nil
 OriginalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     local args = {...}
 
-    if not checkcaller() and States.AimFucker and CurrentAimTarget and isHoldingTool() then
-        local caller = getcallingscript and getcallingscript()
-        if caller and typeof(caller) == "Instance" and (string.find(caller.Name, "Camera") or string.find(caller.Name, "Popper") or string.find(caller.Name, "Zoom")) then
-            return OriginalNamecall(self, ...)
-        end
-
-        local selfStr = tostring(self)
-        
-        if method == "Raycast" and selfStr == "Workspace" then
-            if typeof(args[1]) == "Vector3" and typeof(args[2]) == "Vector3" then
-                local origin = args[1]
-                local dir = args[2]
-                
-                local head = Player.Character and Player.Character:FindFirstChild("Head")
-                if head then
-                    local dirToHead = (head.Position - origin).Unit
-                    if dirToHead:Dot(dir.Unit) > 0.99 then
-                        return OriginalNamecall(self, unpack(args))
-                    end
-                end
-
-                local direction = (CurrentAimTarget.Position - origin).Unit * dir.Magnitude
-                args[2] = direction
-                return OriginalNamecall(self, unpack(args))
-            end
-        end
-
-        if string.find(method, "FindPartOnRay") and selfStr == "Workspace" then
-            if typeof(args[1]) == "Ray" then
-                local origin = args[1].Origin
-                local head = Player.Character and Player.Character:FindFirstChild("Head")
-                if head then
-                    local dirToHead = (head.Position - origin).Unit
-                    if dirToHead:Dot(args[1].Direction.Unit) > 0.99 then
-                        return OriginalNamecall(self, unpack(args))
-                    end
-                end
-
-                local magnitude = args[1].Direction.Magnitude
-                local direction = (CurrentAimTarget.Position - origin).Unit * magnitude
-                args[1] = Ray.new(origin, direction)
-                return OriginalNamecall(self, unpack(args))
+    if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
+        -- Spoof Mobile ScreenPoint/ViewportPoint logic
+        if self == Camera or tostring(self) == "Camera" then
+            if method == "ScreenPointToRay" or method == "ViewportPointToRay" then
+                local camPos = Camera.CFrame.Position
+                local targetPos = CurrentAimTarget.Position
+                local fakeRay = Ray.new(camPos, (targetPos - camPos).Unit)
+                return fakeRay
             end
         end
     end
@@ -159,7 +111,7 @@ end)
 -- ==========================================
 -- ========== GUI CLEANUP & SETUP ===========
 -- ==========================================
-local GUI_NAME = "S4_V4_EVILHUB_HUD"
+local GUI_NAME = "S4_V6_EVILHUB_HUD"
 
 pcall(function()
     for _, v in pairs(CoreGui:GetChildren()) do
@@ -531,12 +483,11 @@ end
 CreateFloatingButton("S4HUB", "ReturnHub", UDim2.new(0, 15, 0, 15), true, true)
 CreateFloatingButton("LOCK GUI", "LockGUI", UDim2.new(0, 15, 0, 65), true, false)
 
-CreateFloatingButton("Auto Duel", "AutoDuel", UDim2.new(0.5, 0, 0.1, 0), false, true)
 CreateFloatingButton("Bat Fucker", "BatFucker", UDim2.new(0.3, 0, 0.1, 0), false, true)
 CreateFloatingButton("Fly", "Fly", UDim2.new(0.7, 0, 0.1, 0), false, true)
+CreateFloatingButton("Instant Steal", "InstantSteal", UDim2.new(0.3, 0, 0.8, 0), false, true)
 
 CreateFloatingButton("AIM FUCKER", "AimFucker", UDim2.new(0.5, 0, 0.8, 0), false, true)
-CreateFloatingButton("Instant Steal", "InstantSteal", UDim2.new(0.3, 0, 0.8, 0), false, true)
 CreateFloatingButton("Unwalk", "Unwalk", UDim2.new(0.7, 0, 0.8, 0), false, true)
 
 -- ==========================================
@@ -741,7 +692,6 @@ end
 
 -- S4DUELS Tab
 CreateHubButton(TabS4Duels, "duelfucker", "DuelFuckerMode", false)
-CreateHubButton(TabS4Duels, "Auto Duel", "AutoDuel", false) 
 CreateHubButton(TabS4Duels, "AIM FUCKER", "AimFucker", false) 
 CreateHubButton(TabS4Duels, "Bat Fucker", "BatFucker", true)
 CreateHubButton(TabS4Duels, "Fly", "Fly", true)
@@ -758,18 +708,49 @@ CreateHubButton(TabS4Duels, "ESP", "ESP", false)
 -- SERVER Tab
 CreateHubButton(TabServer, "FPS Booster", nil, false, function()
     local Lighting = game:GetService("Lighting")
+    local Terrain = workspace:FindFirstChildOfClass("Terrain")
+
     Lighting.GlobalShadows = false
     Lighting.FogEnd = 9e9
+    Lighting.Brightness = 0
+    pcall(function() Lighting.Technology = Enum.Technology.Compatibility end)
+    Lighting.EnvironmentDiffuseScale = 0
+    Lighting.EnvironmentSpecularScale = 0
+    
+    for _, v in pairs(Lighting:GetChildren()) do
+        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") or v:IsA("Clouds") then
+            v:Destroy()
+        end
+    end
+
+    if Terrain then
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0
+        Terrain.WaterTransparency = 0
+        Terrain.Decoration = false
+        pcall(function() Terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(120, 150, 100)) end)
+    end
+
+    local hiddenClasses = {"Texture", "Decal", "ParticleEmitter", "Trail", "Sparkles", "Smoke", "Fire", "Explosion"}
     for _, v in pairs(workspace:GetDescendants()) do
         if v:IsA("BasePart") then
             v.Material = Enum.Material.SmoothPlastic
             v.Reflectance = 0
             v.CastShadow = false
-        elseif v:IsA("Decal") or v:IsA("Texture") then
-            v.Transparency = 1
+        else
+            for _, class in pairs(hiddenClasses) do
+                if v:IsA(class) then
+                    pcall(function() v:Destroy() end)
+                    break
+                end
+            end
         end
     end
+
+    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
 end)
+
 CreateHubButton(TabServer, "Taunt Chat", nil, false, function()
     if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
         local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
@@ -784,6 +765,37 @@ end)
 CreateHubButton(TabServer, "Rejoin Server", nil, false, function() TeleportService:Teleport(game.PlaceId, Player) end)
 CreateHubButton(TabServer, "Server Hop", nil, false, function() TeleportService:Teleport(game.PlaceId) end)
 CreateHubButton(TabServer, "Kick Self", nil, false, function() Player:Kick("S4DUELS Manual Disconnect") end)
+
+-- ==========================================
+-- ========== SENTRY & PROMPT CACHE =========
+-- ==========================================
+local promptCache = {}
+local sentryCache = {}
+
+local function updateCaches()
+    promptCache = {}
+    sentryCache = {}
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then 
+            table.insert(promptCache, obj) 
+        end
+        local lowerName = string.lower(obj.Name)
+        if string.find(lowerName, "sentry") or string.find(lowerName, "turret") then
+            table.insert(sentryCache, obj)
+        end
+    end
+end
+updateCaches()
+
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("ProximityPrompt") then 
+        table.insert(promptCache, obj) 
+    end
+    local lowerName = string.lower(obj.Name)
+    if string.find(lowerName, "sentry") or string.find(lowerName, "turret") then
+        table.insert(sentryCache, obj)
+    end
+end)
 
 -- ==========================================
 -- ========== CORE V3 PHYSICS ENGINE ========
@@ -830,9 +842,10 @@ local function getPhysics(hrp)
     return lv, ao
 end
 
--- AUTO DUEL MEMORY
-local lastCarryState = false
-local currentAutoTarget = nil
+local VELOCITY_LERP_ALPHA = 0.15 
+local lastEffectSweep = 0
+local lastBatHit = 0
+local lastAimUpdate = 0
 
 -- HEARTBEAT DRIVER
 RunService.Heartbeat:Connect(function()
@@ -845,31 +858,34 @@ RunService.Heartbeat:Connect(function()
     local needsLV = false
     local needsAO = false
 
-    -- Fast Target Caching for AimFucker
-    if States.AimFucker then
-        local shortestDist = math.huge
-        local targetPart = nil
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                local part = p.Character:FindFirstChild("UpperTorso") or p.Character:FindFirstChild("HumanoidRootPart") or p.Character.PrimaryPart
-                if part then
-                    local dist = (part.Position - hrp.Position).Magnitude
-                    if dist < shortestDist then
-                        shortestDist = dist
-                        targetPart = part
+    local tool = char:FindFirstChildOfClass("Tool")
+    CachedHoldingTool = (tool ~= nil)
+
+    if tick() - lastAimUpdate > 0.014 then 
+        lastAimUpdate = tick()
+        if States.AimFucker or States.BatFucker then
+            local shortestDist = math.huge
+            local targetPart = nil
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                    local part = p.Character:FindFirstChild("Torso") or p.Character:FindFirstChild("UpperTorso") or p.Character:FindFirstChild("HumanoidRootPart")
+                    if part then
+                        local dist = (part.Position - hrp.Position).Magnitude
+                        if dist < shortestDist then
+                            shortestDist = dist
+                            targetPart = part
+                        end
                     end
                 end
             end
+            CurrentAimTarget = targetPart
+        else
+            CurrentAimTarget = nil
         end
-        CurrentAimTarget = targetPart
-    else
-        CurrentAimTarget = nil
     end
 
-    -- === GLOBAL PHYSICS RESET ===
-    hum.PlatformStand = (States.BatFucker or States.Fly or States.AutoDuel)
+    hum.PlatformStand = (States.BatFucker or States.Fly)
 
-    -- === ANTI RAGDOLL / ANTI FLING SYSTEM ===
     if States.AntiRagdoll then
         hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
         hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
@@ -888,150 +904,120 @@ RunService.Heartbeat:Connect(function()
             end
         end
 
-        if not States.Fly and not States.BatFucker and not States.S4Booster and not States.AutoDuel then
+        if not States.Fly and not States.BatFucker and not States.S4Booster then
             hrp.AssemblyAngularVelocity = Vector3.zero
             if hrp.AssemblyLinearVelocity.Magnitude > 100 then
                 hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0)
             end
         end
 
-        local shouldLockFOV = false
-        local function checkFOVLock(parent)
-            if not parent then return end
-            for _, v in pairs(parent:GetChildren()) do
-                local lowerName = string.lower(v.Name)
-                if string.find(lowerName, "bee") or string.find(lowerName, "zoom") or string.find(lowerName, "yellow") then
-                    shouldLockFOV = true
-                end
-                if v:IsA("ColorCorrectionEffect") and v.TintColor.R > 0.6 and v.TintColor.G > 0.6 and v.TintColor.B < 0.5 then
-                    shouldLockFOV = true
-                end
-            end
-        end
-        
-        checkFOVLock(char)
-        checkFOVLock(Player:FindFirstChild("PlayerGui"))
-        checkFOVLock(game:GetService("Lighting"))
-
-        if shouldLockFOV then
-            if Camera.FieldOfView < 70 or Camera.FieldOfView > 120 then
-                Camera.FieldOfView = 70
-            end
-        end
-
-        local badKeywords = {"bee", "invert", "yellow", "zoom", "confusion", "stun", "ragdoll", "dizzy", "sentry", "turret"}
-        local function sweepBadEffects(parent)
-            if not parent then return end
-            for _, v in pairs(parent:GetChildren()) do
-                local lowerName = string.lower(v.Name)
-                for _, bad in pairs(badKeywords) do
-                    if string.find(lowerName, bad) then
-                        if v:IsA("Script") or v:IsA("LocalScript") or v:IsA("ScreenGui") or v:IsA("ParticleEmitter") or v:IsA("ColorCorrectionEffect") or v:IsA("BlurEffect") or v:IsA("Folder") or v:IsA("StringValue") or v:IsA("BoolValue") then
-                            pcall(function() v:Destroy() end)
-                        elseif string.find(bad, "sentry") or string.find(bad, "turret") then
-                             pcall(function() v:Destroy() end)
-                        end
-                        break
+        if tick() - lastEffectSweep > 0.5 then
+            lastEffectSweep = tick()
+            
+            local shouldLockFOV = false
+            local function checkFOVLock(parent)
+                if not parent then return end
+                for _, v in pairs(parent:GetChildren()) do
+                    local lowerName = string.lower(v.Name)
+                    if string.find(lowerName, "bee") or string.find(lowerName, "zoom") or string.find(lowerName, "yellow") then
+                        shouldLockFOV = true
+                    end
+                    if v:IsA("ColorCorrectionEffect") and v.TintColor.R > 0.6 and v.TintColor.G > 0.6 and v.TintColor.B < 0.5 then
+                        shouldLockFOV = true
                     end
                 end
             end
+            
+            checkFOVLock(char)
+            checkFOVLock(Player:FindFirstChild("PlayerGui"))
+            checkFOVLock(game:GetService("Lighting"))
+
+            if shouldLockFOV then
+                if Camera.FieldOfView < 70 or Camera.FieldOfView > 120 then
+                    Camera.FieldOfView = 70
+                end
+            end
+
+            local badKeywords = {"bee", "invert", "yellow", "zoom", "confusion", "stun", "ragdoll", "dizzy"}
+            local function sweepBadEffects(parent)
+                if not parent then return end
+                for _, v in pairs(parent:GetChildren()) do
+                    local lowerName = string.lower(v.Name)
+                    for _, bad in pairs(badKeywords) do
+                        if string.find(lowerName, bad) then
+                            if v:IsA("Script") or v:IsA("LocalScript") or v:IsA("ScreenGui") or v:IsA("ParticleEmitter") or v:IsA("ColorCorrectionEffect") or v:IsA("BlurEffect") or v:IsA("Folder") or v:IsA("StringValue") or v:IsA("BoolValue") then
+                                pcall(function() v:Destroy() end)
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+            
+            sweepBadEffects(char)
+            sweepBadEffects(Player:FindFirstChild("PlayerGui"))
+            sweepBadEffects(game:GetService("Lighting"))
+            
+            for i = #sentryCache, 1, -1 do
+                local obj = sentryCache[i]
+                if not obj or not obj.Parent then
+                    table.remove(sentryCache, i)
+                else
+                    pcall(function() obj:Destroy() end)
+                    table.remove(sentryCache, i)
+                end
+            end
         end
-        
-        sweepBadEffects(char)
-        sweepBadEffects(Player:FindFirstChild("PlayerGui"))
-        sweepBadEffects(game:GetService("Lighting"))
-        sweepBadEffects(workspace)
     end
 
-    -- === AIM FUCKER (UNIVERSAL AUTO-FACE & QUANTUM BAT) ===
     if States.AimFucker then
         if CurrentAimTarget then
             hum.AutoRotate = false
             needsAO = true
             local _, ao = getPhysics(hrp)
-            if not States.BatFucker and not States.Fly and not States.AutoDuel then 
+            if not States.BatFucker and not States.Fly then 
                 ao.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(CurrentAimTarget.Position.X, hrp.Position.Y, CurrentAimTarget.Position.Z))
             end
             
-            local tool = char:FindFirstChildOfClass("Tool")
             if tool and tool:FindFirstChild("Handle") then
-                local handle = tool.Handle
-                for _, obj in pairs(workspace:GetDescendants()) do
-                    local lowerName = string.lower(obj.Name)
-                    if string.find(lowerName, "sentry") or string.find(lowerName, "turret") then
-                        local targetHitbox = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
-                        if targetHitbox and firetouchinterest then
-                            pcall(function()
-                                firetouchinterest(handle, targetHitbox, 0)
-                                firetouchinterest(handle, targetHitbox, 1)
-                            end)
+                if tick() - lastBatHit > 0.1 then
+                    lastBatHit = tick()
+                    local handle = tool.Handle
+                    for i = #sentryCache, 1, -1 do
+                        local obj = sentryCache[i]
+                        if not obj or not obj.Parent then
+                            table.remove(sentryCache, i)
+                        else
+                            local targetHitbox = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
+                            if targetHitbox and firetouchinterest then
+                                pcall(function()
+                                    firetouchinterest(handle, targetHitbox, 0)
+                                    firetouchinterest(handle, targetHitbox, 1)
+                                end)
+                            end
                         end
                     end
                 end
             end
 
         else
-            if not States.BatFucker and not States.AutoDuel then hum.AutoRotate = true end
+            if not States.BatFucker then hum.AutoRotate = true end
         end
     else
-        if not States.BatFucker and not States.AutoDuel then hum.AutoRotate = true end
+        if not States.BatFucker then hum.AutoRotate = true end
     end
 
-    -- === PHYSICS LOGIC ===
-    if States.AutoDuel then
-        hum.AutoRotate = false 
-        needsLV = true
-        needsAO = true
-        
-        local isCarrying = Player:GetAttribute("Stealing")
-        
-        if lastCarryState ~= isCarrying or not currentAutoTarget then
-            local distL = (hrp.Position - BaseL_Center).Magnitude
-            local distR = (hrp.Position - BaseR_Center).Magnitude
-            
-            -- If carry state changed, or initializing, Target is ALWAYS the furthest base
-            currentAutoTarget = (distL > distR) and BaseL_Center or BaseR_Center
-            lastCarryState = isCarrying
-        end
-        
-        local lv, ao = getPhysics(hrp)
-        lv.MaxForce = 9e9
-        ao.CFrame = CFrame.lookAt(hrp.Position, currentAutoTarget)
-        
-        local dir = (currentAutoTarget - hrp.Position)
-        if dir.Magnitude > 3 then
-            dir = dir.Unit
-            local speed = isCarrying and Config.FlyCarrySpeed or Config.FlySpeed
-            lv.VectorVelocity = dir * speed
-        else
-            lv.VectorVelocity = Vector3.zero
-        end
-
-    elseif States.BatFucker then
+    if States.BatFucker then
         hum.AutoRotate = false 
         needsLV = true
         needsAO = true
         
         local bfTarget = CurrentAimTarget 
-        if not bfTarget then 
-            local shortestDist = math.huge
-            for _, p in pairs(Players:GetPlayers()) do
-                if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                    local part = p.Character:FindFirstChild("Head") or p.Character:FindFirstChild("UpperTorso") or p.Character:FindFirstChild("Torso") or p.Character:FindFirstChild("HumanoidRootPart")
-                    if part then
-                        local dist = (part.Position - hrp.Position).Magnitude
-                        if dist < shortestDist then
-                            shortestDist = dist
-                            bfTarget = part
-                        end
-                    end
-                end
-            end
-        end
 
         if bfTarget then
             local lv, ao = getPhysics(hrp)
-            lv.MaxForce = 9e9
+            lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
+            lv.MaxForce = 1e5
             local targetPos = bfTarget.Position
             local myPos = hrp.Position
             local distanceToTarget = (targetPos - myPos).Magnitude
@@ -1049,6 +1035,7 @@ RunService.Heartbeat:Connect(function()
             
             local optimalStrikePos = targetPos + (dirFromTarget * 2.5)
             local distToOptimal = (optimalStrikePos - myPos).Magnitude
+            local targetVel
 
             if distanceToTarget > 8 then
                 local timeToReach = math.clamp(distanceToTarget / Config.BatSpeed, 0, 0.3)
@@ -1056,16 +1043,17 @@ RunService.Heartbeat:Connect(function()
                 local chaseDir = (predictedPos - myPos)
                 if chaseDir.Magnitude > 0 then chaseDir = chaseDir.Unit else chaseDir = Vector3.zero end
                 
-                lv.VectorVelocity = chaseDir * Config.BatSpeed
+                targetVel = chaseDir * Config.BatSpeed
             else
                 if distToOptimal > 0.5 then
                     local stickDir = (optimalStrikePos - myPos).Unit
                     local lungeSpeed = math.min(25, distToOptimal * 8) 
-                    lv.VectorVelocity = bfTarget.AssemblyLinearVelocity + (stickDir * lungeSpeed)
+                    targetVel = bfTarget.AssemblyLinearVelocity + (stickDir * lungeSpeed)
                 else
-                    lv.VectorVelocity = bfTarget.AssemblyLinearVelocity
+                    targetVel = bfTarget.AssemblyLinearVelocity
                 end
             end
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
         end
 
     elseif States.Fly then
@@ -1073,7 +1061,8 @@ RunService.Heartbeat:Connect(function()
         needsAO = true
         
         local lv, ao = getPhysics(hrp)
-        lv.MaxForce = 9e9
+        lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
+        lv.MaxForce = 1e5
         
         ao.CFrame = Camera.CFrame
 
@@ -1088,28 +1077,34 @@ RunService.Heartbeat:Connect(function()
             
             local flyDir = (Camera.CFrame.LookVector * forwardMag + Camera.CFrame.RightVector * rightMag)
             if flyDir.Magnitude > 0 then flyDir = flyDir.Unit end
-            lv.VectorVelocity = flyDir * speed
+            
+            local targetVel = flyDir * speed
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
         else
-            lv.VectorVelocity = Vector3.zero
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.zero, VELOCITY_LERP_ALPHA)
         end
 
     elseif States.S4Booster then
         needsLV = true
         local lv, _ = getPhysics(hrp)
-        lv.MaxForce = 9e9
+        
+        lv.ForceLimitMode = Enum.ForceLimitMode.PerAxis
+        lv.MaxAxesForce = Vector3.new(1e5, 0, 1e5)
         
         if hum.MoveDirection.Magnitude > 0 then
             local speed = Player:GetAttribute("Stealing") and Config.CarrySpeed or Config.WalkSpeed
             local velocityDir = hum.MoveDirection * speed
-            hrp.AssemblyLinearVelocity = Vector3.new(velocityDir.X, hrp.AssemblyLinearVelocity.Y, velocityDir.Z)
-            lv.VectorVelocity = Vector3.new(velocityDir.X, hrp.AssemblyLinearVelocity.Y, velocityDir.Z)
+            local targetVel = Vector3.new(velocityDir.X, 0, velocityDir.Z)
+            
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
         else
-            lv.MaxForce = 0
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.zero, VELOCITY_LERP_ALPHA)
         end
     end
 
     if not needsLV and hrp:FindFirstChild("S4_LinearVelocity") then
         hrp.S4_LinearVelocity.MaxForce = 0
+        hrp.S4_LinearVelocity.MaxAxesForce = Vector3.zero
     end
     if not needsAO and hrp:FindFirstChild("S4_AlignOrientation") then
         hrp.S4_AlignOrientation:Destroy()
@@ -1119,26 +1114,9 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ==========================================
--- = INSTANT STEAL (HEARTBEAT OPTIMIZED) ====
--- ==========================================
-local promptCache = {}
-
-local function updatePromptCache()
-    promptCache = {}
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("ProximityPrompt") then table.insert(promptCache, obj) end
-    end
-end
-updatePromptCache()
-workspace.DescendantAdded:Connect(function(obj)
-    if obj:IsA("ProximityPrompt") then table.insert(promptCache, obj) end
-end)
-
 RunService.Heartbeat:Connect(function()
-    if not States.InstantSteal and not States.AutoDuel then return end
+    if not States.InstantSteal then return end
     if not Player.Character then return end
-    
     if Player:GetAttribute("Stealing") then return end
 
     local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
@@ -1190,7 +1168,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- === UNWALK ===
 task.spawn(function()
     while task.wait(0.5) do
         if States.Unwalk then
@@ -1207,7 +1184,6 @@ task.spawn(function()
     end
 end)
 
--- === ESP RENDER (ANTI-DESYNC) ===
 task.spawn(function()
     while task.wait(0.5) do
         if States.ESP then
@@ -1269,7 +1245,6 @@ task.spawn(function()
     end
 end)
 
--- === INF JUMP ===
 UserInputService.JumpRequest:Connect(function()
     if States.InfJump and Player.Character then
         local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
@@ -1279,7 +1254,6 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FPS & PING Updates
 local lastFpsUpdate = 0
 local frameCount = 0
 
@@ -1295,13 +1269,11 @@ RunService.RenderStepped:Connect(function(deltaTime)
     end
 end)
 
--- Cleanup on Death
 Player.CharacterAdded:Connect(function(char)
     char:WaitForChild("Humanoid").Died:Connect(function()
         States.BatFucker = false
         States.AimFucker = false
         States.Fly = false
-        States.AutoDuel = false
         
         if UIRegistry["BatFucker"] then
             for _, func in pairs(UIRegistry["BatFucker"]) do func(false) end
@@ -1311,9 +1283,6 @@ Player.CharacterAdded:Connect(function(char)
         end
         if UIRegistry["Fly"] then
             for _, func in pairs(UIRegistry["Fly"]) do func(false) end
-        end
-        if UIRegistry["AutoDuel"] then
-            for _, func in pairs(UIRegistry["AutoDuel"]) do func(false) end
         end
     end)
 end)
