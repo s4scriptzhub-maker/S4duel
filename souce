@@ -1,0 +1,144 @@
+local _wfConns = {}
+local _wfActive = false
+
+local function stopWalkFling()
+    _wfActive = false
+    for _, c in ipairs(_wfConns) do
+        if typeof(c) == "RBXScriptConnection" then 
+            c:Disconnect()
+        elseif typeof(c) == "thread" then 
+            pcall(task.cancel, c) 
+        end
+    end
+    _wfConns = {}
+end
+
+local function startWalkFling()
+    stopWalkFling()
+    _wfActive = true
+    
+    table.insert(_wfConns, rs.Stepped:Connect(function()
+        if not _wfActive then return end
+        for _, p in ipairs(game.Players:GetPlayers()) do
+            if p ~= plr and p.Character then
+                for _, part in ipairs(p.Character:GetChildren()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
+            end
+        end
+    end))
+
+    local co = coroutine.create(function()
+        while _wfActive do
+            rs.Heartbeat:Wait()
+            local char = plr.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if not root then continue end
+            
+            local vel = root.Velocity
+            root.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
+            
+            rs.RenderStepped:Wait()
+            if root and root.Parent then root.Velocity = vel end
+            
+            rs.Stepped:Wait()
+            if root and root.Parent then 
+                root.Velocity = vel + Vector3.new(0, 0.1, 0) 
+            end
+        end
+    end)
+
+-- anti ragdoll
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local antiRagdollMode = nil
+local ragdollConnections = {}
+local cachedCharData = {}
+local isBoosting = false 
+local BOOST_SPEED = 400 
+local DEFAULT_SPEED = 16
+
+local function cacheCharacterData()
+    local char = player.Character
+    if not char then return false end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not root then return false end
+    cachedCharData = { character = char, humanoid = hum, root = root }
+    return true
+end
+
+local function disconnectAll()
+    for _, conn in ipairs(ragdollConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    ragdollConnections = {}
+end
+
+local function isRagdolled()
+    if not cachedCharData.humanoid then return false end
+    local state = cachedCharData.humanoid:GetState()
+    local ragdollStates = {[Enum.HumanoidStateType.Physics] = true, [Enum.HumanoidStateType.Ragdoll] = true, [Enum.HumanoidStateType.FallingDown] = true}
+    if ragdollStates[state] then return true end
+    local endTime = player:GetAttribute("RagdollEndTime")
+    if endTime and (endTime - workspace:GetServerTimeNow()) > 0 then return true end
+    return false
+end
+
+local function forceExitRagdoll()
+    if not cachedCharData.humanoid or not cachedCharData.root then return end
+    pcall(function() player:SetAttribute("RagdollEndTime", workspace:GetServerTimeNow()) end)
+    for _, descendant in ipairs(cachedCharData.character:GetDescendants()) do
+        if descendant:IsA("BallSocketConstraint") or (descendant:IsA("Attachment") and descendant.Name:find("RagdollAttachment")) then
+            descendant:Destroy()
+        end
+    end
+    if not isBoosting then
+        isBoosting = true
+        cachedCharData.humanoid.WalkSpeed = BOOST_SPEED
+    end
+    if cachedCharData.humanoid.Health > 0 then
+        cachedCharData.humanoid:ChangeState(Enum.HumanoidStateType.Running)
+    end
+    cachedCharData.root.Anchored = false
+end
+
+local function v1HeartbeatLoop()
+    while antiRagdollMode == "v1" do
+        task.wait()
+        local currentlyRagdolled = isRagdolled()
+        if currentlyRagdolled then
+            forceExitRagdoll()
+        elseif isBoosting and not currentlyRagdolled then
+            isBoosting = false
+            if cachedCharData.humanoid then cachedCharData.humanoid.WalkSpeed = DEFAULT_SPEED end
+        end
+    end
+end
+
+local function EnableAntiRagdoll()
+    if antiRagdollMode == "v1" then return end
+    if not cacheCharacterData() then return end
+    antiRagdollMode = "v1"
+    local camConn = RunService.RenderStepped:Connect(function()
+        local cam = workspace.CurrentCamera
+        if cam and cachedCharData.humanoid then cam.CameraSubject = cachedCharData.humanoid end
+    end)
+    table.insert(ragdollConnections, camConn)
+    local respawnConn = player.CharacterAdded:Connect(function()
+        isBoosting = false 
+        task.wait(0.5)
+        cacheCharacterData()
+    end)
+    table.insert(ragdollConnections, respawnConn)
+    task.spawn(v1HeartbeatLoop)
+end
+
+local function DisableAntiRagdoll()
+    antiRagdollMode = nil
+    if isBoosting and cachedCharData.humanoid then cachedCharData.humanoid.WalkSpeed = DEFAULT_SPEED end
+    isBoosting = false
+    disconnectAll()
+    cachedCharData = {}
+end
