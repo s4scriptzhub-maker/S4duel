@@ -524,11 +524,11 @@ end)
 CreateHubButton(TabServer, "Taunt Chat", nil, false, function()
     if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
         local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
-        if channel then channel:SendAsync("S4DUELS BEST SCRIPT") end
+        if channel then channel:SendAsync("S4DUELS ON TOP") end
     else
         local rme = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
         if rme and rme:FindFirstChild("SayMessageRequest") then 
-            rme.SayMessageRequest:FireServer("S4DUELS BEST SCRIPT", "All") 
+            rme.SayMessageRequest:FireServer("S4DUELS ON TOP", "All") 
         end
     end
 end)
@@ -616,7 +616,63 @@ end)
 -- ========== GLOBAL LOGIC THREADS ==========
 -- ==========================================
 -- [placeholder for global __index and __namecall spoofing hooks]
--- [placeholder for global Heartbeat physics loop]
+-- === BAT FUCKER (SMOOTH-STEP PHYSICS) ===
+    if States.BatFucker then
+        hum.AutoRotate = false 
+        needsLV = true
+        needsAO = true
+        
+        local bfTarget = CurrentAimTarget 
+
+        if bfTarget then
+            local lv, ao = getPhysics(hrp)
+            lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
+            lv.MaxForce = 45000 -- Safe limit to prevent Anti-Cheat Force Flags
+            
+            local targetPos = bfTarget.Position
+            local myPos = hrp.Position
+            local distanceToTarget = (targetPos - myPos).Magnitude
+
+            -- Smooth Y-Axis locked rotation
+            if distanceToTarget > 0.1 then
+                ao.CFrame = CFrame.lookAt(myPos, Vector3.new(targetPos.X, myPos.Y, targetPos.Z))
+            end
+
+            -- Optimal strike positioning (3 studs away)
+            local dirFromTarget = (myPos - targetPos)
+            if dirFromTarget.Magnitude > 0.1 then 
+                dirFromTarget = dirFromTarget.Unit 
+            else 
+                dirFromTarget = Vector3.new(0, 0, 1) 
+            end
+            
+            local optimalStrikePos = targetPos + (dirFromTarget * 3)
+            local distToOptimal = (optimalStrikePos - myPos).Magnitude
+            local targetVel
+
+            if distanceToTarget > 8 then
+                -- Predictive Chase Logic
+                local timeToReach = math.clamp(distanceToTarget / Config.BatSpeed, 0, 0.3)
+                local predictedPos = optimalStrikePos + (bfTarget.AssemblyLinearVelocity * timeToReach)
+                local chaseDir = (predictedPos - myPos)
+                if chaseDir.Magnitude > 0 then chaseDir = chaseDir.Unit else chaseDir = Vector3.zero end
+                
+                targetVel = chaseDir * Config.BatSpeed
+            else
+                -- Close Quarters: Match Velocity to prevent Ramming/Rubberbanding
+                if distToOptimal > 0.5 then
+                    local stickDir = (optimalStrikePos - myPos).Unit
+                    local lungeSpeed = math.min(15, distToOptimal * 5) -- Softened lunge
+                    targetVel = bfTarget.AssemblyLinearVelocity + (stickDir * lungeSpeed)
+                else
+                    targetVel = bfTarget.AssemblyLinearVelocity
+                end
+            end
+            
+            -- Strict Delta-V Lerping (Alpha 0.12 for maximum smoothness)
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, 0.12)
+        end
+    end
 -- [placeholder for proxy prompt threads]
 -- [placeholder for FPS/Ping updates]
 
