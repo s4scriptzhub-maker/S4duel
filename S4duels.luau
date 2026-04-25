@@ -539,7 +539,7 @@ CreateHubButton(TabServer, "Server Hop", nil, false, function()
     -- [placeholder for server hop logics]
 end)
 CreateHubButton(TabServer, "Kick Self", nil, false, function() 
-    Player:Kick("S4DUELS Manual Disconnect - Evading Anti-Cheat.")
+    Player:Kick("S4DUELS Manual Disconnect -FUCKED BY S4HUB.")
 end)
 
 -- ==========================================
