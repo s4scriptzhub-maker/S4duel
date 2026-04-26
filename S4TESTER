@@ -1,6 +1,7 @@
--- S4DUELS V6.1: ELITE MODULAR FRAMEWORK
--- UI DESIGN + NAVIGATION + ANTI-DESYNC ESP MODULE
--- OTHER FEATURES REPLACED WITH PLACEHOLDERS
+-- S4DUELS V6.1: ELITE PLASMA GLASS FRAMEWORK
+-- UI DESIGN + NAVIGATION + INPUT SPOOFER ACC CACHE ONLY
+-- PURELY VISUAL FEATURE TOGGLES (LOGICS = PLACEHOLDERS)
+-- COMPILER COMPATIBLE (NO MULTILINE STRINGS)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -9,6 +10,7 @@ local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 
 local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
 while not Player do
     Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
@@ -16,43 +18,27 @@ while not Player do
 end
 
 -- ==========================================
--- ========== GLOBAL CONFIGURATION ==========
+-- ========== THEME CONFIGURATION ===========
 -- ==========================================
-local Config = {
-    BatSpeed = 56,
-    FlySpeed = 110,
-    FlyCarrySpeed = 29,
-    WalkSpeed = 56,
-    CarrySpeed = 29,
-    AutoDuelSpeed = 56,
-    AutoDuelCarrySpeed = 29
-}
-
-local States = {
-    BatFucker = false,
-    AimFucker = false,
-    Fly = false,
-    S4Booster = false,
-    InstantSteal = false,
-    AutoDuel = false,
-    ESP = false,
-    InfJump = false,
-    Unwalk = false,
-    AntiRagdoll = false,
-    DuelFuckerMode = false
-}
-
--- Aesthetics
 local Theme = {
-    Background = Color3.fromRGB(20, 10, 30),      
-    PanelBg = Color3.fromRGB(40, 20, 60),         
-    PurpleNeon = Color3.fromRGB(210, 50, 255),    
-    BlueNeon = Color3.fromRGB(0, 240, 255),       
+    -- Backgrounds: Deep Smoked Obsidian Purple (High Transparency)
+    Background = Color3.fromRGB(15, 10, 25),      
+    PanelBg = Color3.fromRGB(35, 20, 55),         
+    
+    -- Accents: Radiant Plasma Purple (Outlines and Slider Fills)
+    BorderNeon = Color3.fromRGB(200, 50, 255),    -- Glow perimeter
+    AccentFill = Color3.fromRGB(210, 50, 255),    -- Solid magenta fills (Tabs/Sliders)
+    
+    -- Text/Stats
     TextWhite = Color3.fromRGB(245, 245, 250),
     TextDim = Color3.fromRGB(170, 150, 190),
+    
+    -- Function Colors
     Danger = Color3.fromRGB(255, 50, 70),
     Success = Color3.fromRGB(40, 255, 120),
-    InactiveStroke = Color3.fromRGB(70, 40, 90),
+    InactiveBorder = Color3.fromRGB(70, 40, 90),
+    
+    -- Effect Settings
     GlassTransparency = 0.55,
     PanelTransparency = 0.4
 }
@@ -61,6 +47,16 @@ local TweenFast = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection
 local guiLocked = false
 local UIRegistry = {} 
 local STROKE_THICKNESS = 1.8
+
+-- ==========================================
+-- ========== CACHING & HOOKS ===============
+-- ==========================================
+-- Universal cache for spoofer to access
+local CurrentAimTarget = nil 
+local CachedHoldingTool = false 
+
+-- [placeholder for global spoofing index hooks]
+-- [placeholder for global spoofing namecall hooks]
 
 -- ==========================================
 -- ========== GUI CLEANUP & SETUP ===========
@@ -76,34 +72,46 @@ end)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = GUI_NAME
 ScreenGui.ResetOnSpawn = false
+-- Hui detection for standard executors
 pcall(function() ScreenGui.Parent = gethui and gethui() or CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = Player:WaitForChild("PlayerGui") end
 
 -- ==========================================
--- ========== LIVE SHINY ENGINE =============
+-- ========== LIVE PLASMA BORDER ENGINE =====
 -- ==========================================
-local function applyShinyGradient(parent, color1)
-    local gradient = Instance.new("UIGradient", parent)
+-- Creates the glowing/shiny perimeter effect that glorifies the frames
+local function ApplyPlasmaBorder(parent, isFunctional)
+    local stroke = Instance.new("UIStroke", parent)
+    stroke.Thickness = STROKE_THICKNESS
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     
-    local function updateColor(color)
+    local gradient = Instance.new("UIGradient", stroke)
+    
+    -- Create the "Ring of Light" white highlight in the purple glow sequence
+    local function updateColorSequence(baseColor)
         gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, color),
-            ColorSequenceKeypoint.new(0.4, color),
-            ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)), 
-            ColorSequenceKeypoint.new(0.6, color),
-            ColorSequenceKeypoint.new(1, color)
+            ColorSequenceKeypoint.new(0, baseColor),
+            ColorSequenceKeypoint.new(0.4, baseColor),
+            ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)), -- Shiny highlight
+            ColorSequenceKeypoint.new(0.6, baseColor),
+            ColorSequenceKeypoint.new(1, baseColor),
         })
     end
-    updateColor(color1)
     
+    -- Top Header/Hub borders always glow. Functional buttons use logic colors.
+    local activeColor = isFunctional and Theme.AccentFill or Theme.BorderNeon
+    updateColorSequence(isFunctional and Theme.InactiveBorder or Theme.BorderNeon)
+    
+    -- Independent render loop for the glowing flow
     task.spawn(function()
-        local rot = 0
+        local flowOffset = 0
         RunService.RenderStepped:Connect(function(dt)
-            rot = (rot + (dt * 150)) % 360 
-            gradient.Rotation = rot
+            flowOffset = (flowOffset + (dt * 150)) % 360 -- Rotation speed
+            gradient.Rotation = flowOffset
         end)
     end)
-    return gradient, updateColor
+    
+    return gradient, updateColorSequence
 end
 
 -- ==========================================
@@ -117,7 +125,7 @@ local function MakeFloatingDraggable(frame, button, onClick)
 
     button.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            if guiLocked and frame.Parent == ScreenGui.DuelFuckerHUD then return end 
+            if guiLocked and frame.Name == "MainWindow" then return end -- Don't move locked Main Window
             if dragging then return end 
             
             dragging = true
@@ -153,16 +161,16 @@ end
 -- ========== PREMIUM HEADER ================
 -- ==========================================
 local TopHeader = Instance.new("Frame", ScreenGui)
+TopHeader.Name = "TopHeader"
 TopHeader.Size = UDim2.new(0, 200, 0, 60)
 TopHeader.Position = UDim2.new(0.5, -100, 0, 20)
 TopHeader.BackgroundColor3 = Theme.Background
-TopHeader.BackgroundTransparency = Theme.GlassTransparency
+TopHeader.BackgroundTransparency = Theme.GlassTransparency -- Glass effect
 TopHeader.BorderSizePixel = 0
 Instance.new("UICorner", TopHeader).CornerRadius = UDim.new(0, 4)
 
-local HeaderStroke = Instance.new("UIStroke", TopHeader)
-HeaderStroke.Thickness = STROKE_THICKNESS
-applyShinyGradient(HeaderStroke, Theme.PurpleNeon)
+-- Shiny glowing outline (Global Purple Neon)
+ApplyPlasmaBorder(TopHeader, false)
 
 local HeaderTitle = Instance.new("TextLabel", TopHeader)
 HeaderTitle.Size = UDim2.new(1, 0, 0, 25)
@@ -188,13 +196,13 @@ ToggleHubBtn.Position = UDim2.new(0.5, -50, 1, 8)
 ToggleHubBtn.BackgroundColor3 = Theme.PanelBg
 ToggleHubBtn.BackgroundTransparency = Theme.PanelTransparency
 ToggleHubBtn.Text = "S4HUB"
-ToggleHubBtn.TextColor3 = Theme.PurpleNeon
+ToggleHubBtn.TextColor3 = Theme.AccentFill -- Glow Text matching Accent Fill (image_1.png)
 ToggleHubBtn.Font = Enum.Font.GothamBlack
 ToggleHubBtn.TextSize = 13
 Instance.new("UICorner", ToggleHubBtn).CornerRadius = UDim.new(0, 4)
 local ToggleStroke = Instance.new("UIStroke", ToggleHubBtn)
 ToggleStroke.Thickness = STROKE_THICKNESS
-applyShinyGradient(ToggleStroke, Theme.PurpleNeon)
+ApplyPlasmaBorder(ToggleHubBtn, false)
 
 MakeFloatingDraggable(TopHeader, TopHeader)
 
@@ -202,22 +210,22 @@ MakeFloatingDraggable(TopHeader, TopHeader)
 -- ========== MAIN HUB WINDOW ===============
 -- ==========================================
 local MainWindow = Instance.new("Frame", ScreenGui)
+MainWindow.Name = "MainWindow"
 MainWindow.Size = UDim2.new(0, 380, 0, 320)
 MainWindow.Position = UDim2.new(0.5, -190, 0.5, -160)
 MainWindow.BackgroundColor3 = Theme.Background
-MainWindow.BackgroundTransparency = Theme.GlassTransparency
+MainWindow.BackgroundTransparency = Theme.GlassTransparency -- Glass effect
 MainWindow.BorderSizePixel = 0
 MainWindow.Visible = false 
 Instance.new("UICorner", MainWindow).CornerRadius = UDim.new(0, 4)
 
-local MainStroke = Instance.new("UIStroke", MainWindow)
-MainStroke.Thickness = STROKE_THICKNESS
-applyShinyGradient(MainStroke, Theme.PurpleNeon)
+-- Shiny glowing outline (Global Purple Neon)
+ApplyPlasmaBorder(MainWindow, false)
 
+-- Navigation Logic: Show Hub (Active)
 ToggleHubBtn.Activated:Connect(function()
-    if not States.DuelFuckerMode then 
-        MainWindow.Visible = not MainWindow.Visible 
-    end
+    MainWindow.Visible = not MainWindow.Visible
+    -- [placeholder for floating quick access visibility logics]
 end)
 
 local TitleBar = Instance.new("Frame", MainWindow)
@@ -231,7 +239,7 @@ local TitleText = Instance.new("TextLabel", TitleBar)
 TitleText.Size = UDim2.new(1, -20, 1, 0)
 TitleText.Position = UDim2.new(0, 15, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "S4HUB ELITE"
+TitleText.Text = "S4HUB V6: ELITE"
 TitleText.TextColor3 = Theme.TextWhite
 TitleText.Font = Enum.Font.GothamBlack
 TitleText.TextSize = 14
@@ -252,6 +260,7 @@ MakeFloatingDraggable(MainWindow, TitleBar)
 -- ==========================================
 -- ========== TOP TABS & CONTENT ============
 -- ==========================================
+-- Segmented control similar to standard mobile tab styling (image_1.png)
 local TabContainer = Instance.new("Frame", MainWindow)
 TabContainer.Size = UDim2.new(1, -20, 0, 36)
 TabContainer.Position = UDim2.new(0, 10, 0, 45) 
@@ -271,26 +280,28 @@ local function CreateTab(tabName, xPositionScale)
     local TabBtn = Instance.new("TextButton", TabContainer)
     TabBtn.Size = UDim2.new(0.5, 0, 1, 0)
     TabBtn.Position = UDim2.new(xPositionScale, 0, 0, 0)
-    TabBtn.BackgroundTransparency = 1
+    TabBtn.BackgroundColor3 = Theme.AccentFill
+    TabBtn.BackgroundTransparency = 1 -- Initially hidden background
     TabBtn.Text = tabName
     TabBtn.TextColor3 = Theme.TextDim
     TabBtn.Font = Enum.Font.GothamBold
     TabBtn.TextSize = 13
+    Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 4)
     
     local Indicator = Instance.new("Frame", TabBtn)
     Indicator.Size = UDim2.new(0.6, 0, 0, 3)
     Indicator.Position = UDim2.new(0.2, 0, 1, -3)
-    Indicator.BackgroundColor3 = Theme.PurpleNeon
-    Indicator.BackgroundTransparency = 1
+    Indicator.BackgroundColor3 = Theme.AccentFill
+    Indicator.BackgroundTransparency = 1 -- Initially hidden
     Instance.new("UICorner", Indicator).CornerRadius = UDim.new(1, 0)
 
     local TabContent = Instance.new("ScrollingFrame", ContentArea)
     TabContent.Size = UDim2.new(1, 0, 1, 0)
     TabContent.BackgroundTransparency = 1
     TabContent.ScrollBarThickness = 2
-    TabContent.ScrollBarImageColor3 = Theme.PurpleNeon
+    TabContent.ScrollBarImageColor3 = Theme.AccentFill
     TabContent.Visible = false
-    TabContent.CanvasSize = UDim2.new(0, 0, 1.5, 0)
+    TabContent.CanvasSize = UDim2.new(0, 0, 2.5, 0) -- High Quality: Allow for many items
     
     local Layout = Instance.new("UIGridLayout", TabContent)
     Layout.CellSize = UDim2.new(0.48, 0, 0, 42)
@@ -298,53 +309,100 @@ local function CreateTab(tabName, xPositionScale)
 
     table.insert(Tabs, {Btn = TabBtn, Content = TabContent, Indicator = Indicator})
 
+    -- Navigation Logic: Switch Tab (Active)
     TabBtn.Activated:Connect(function()
         for _, tab in pairs(Tabs) do
             tab.Content.Visible = false
-            TweenService:Create(tab.Btn, TweenFast, {TextColor3 = Theme.TextDim}):Play()
+            TweenService:Create(tab.Btn, TweenFast, {BackgroundTransparency = 1, TextColor3 = Theme.TextDim}):Play()
             TweenService:Create(tab.Indicator, TweenFast, {BackgroundTransparency = 1}):Play()
         end
         TabContent.Visible = true
-        TweenService:Create(TabBtn, TweenFast, {TextColor3 = Theme.TextWhite}):Play()
+        TweenService:Create(TabBtn, TweenFast, {BackgroundTransparency = 0.3, TextColor3 = Theme.TextWhite}):Play()
         TweenService:Create(Indicator, TweenFast, {BackgroundTransparency = 0}):Play()
     end)
 
     return TabContent
 end
 
+-- Create Hub Tabs
 local TabS4Duels = CreateTab("S4DUELS", 0)
 local TabServer = CreateTab("SERVER", 0.5)
 
+-- Set default active state
 Tabs[1].Btn.TextColor3 = Theme.TextWhite
+Tabs[1].Btn.BackgroundTransparency = 0.3
 Tabs[1].Indicator.BackgroundTransparency = 0
 Tabs[1].Content.Visible = true
 
 -- ==========================================
--- ======== DUELFUCKER HUD (FLOATING) =======
+-- ========== SPEED CUSTOMIZER MENUS ========
 -- ==========================================
-local DuelFuckerHUD = Instance.new("Frame", ScreenGui)
-DuelFuckerHUD.Name = "DuelFuckerHUD"
-DuelFuckerHUD.Size = UDim2.new(1, 0, 1, 0)
-DuelFuckerHUD.BackgroundTransparency = 1
-DuelFuckerHUD.Visible = false
+-- Reusable function to build the bolder, easy-to-use mobile sliders requested
+local function addSpeedSlider(menu, yPos, labelStr, minVal, maxVal)
+    local label = Instance.new("TextLabel", menu)
+    label.Size = UDim2.new(1, -30, 0, 20)
+    label.Position = UDim2.new(0, 15, 0, yPos)
+    label.BackgroundTransparency = 1
+    label.Text = labelStr .. ": [VAL PLACEHOLDER]"
+    label.TextColor3 = Theme.TextWhite
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 51
 
-local function CreateFloatingButton(text, stateKey, defaultPos, isBlueLine)
-    local frame = Instance.new("Frame", DuelFuckerHUD)
+    -- BOLDER SLIDER TRACK (High Transparency Glass)
+    local track = Instance.new("TextButton", menu)
+    track.Size = UDim2.new(1, -30, 0, 12) 
+    track.Position = UDim2.new(0, 15, 0, yPos + 24)
+    track.BackgroundColor3 = Theme.PanelBg -- Smoked Glass
+    track.Text = ""
+    track.ZIndex = 51
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+    
+    ApplyPlasmaBorder(track, false) -- Track gets thin plasma glow border
+
+    -- Bright fill for contrast (image_1.png)
+    local fill = Instance.new("Frame", track)
+    fill.Size = UDim2.new(0.5, 0, 1, 0) -- Placeholder fill state
+    fill.BackgroundColor3 = Theme.AccentFill
+    fill.ZIndex = 52
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+    
+    -- Floating drag circle (Glorified)
+    local knobby = Instance.new("Frame", fill)
+    knobby.Size = UDim2.new(0, 18, 0, 18)
+    knobby.Position = UDim2.new(1, -9, 0.5, -9)
+    knobby.BackgroundColor3 = Theme.TextWhite
+    knobby.ZIndex = 53
+    Instance.new("UICorner", knobby).CornerRadius = UDim.new(1, 0)
+    
+    -- Slider logic placeholder
+end
+
+-- [placeholder for creating speed menus (Bat, Fly, Booster, etc.)]
+
+-- ==========================================
+-- ======== QUICK ACCESS FLOATING HUB =======
+-- ==========================================
+local QuickAccessHub = Instance.new("Frame", ScreenGui)
+QuickAccessHub.Name = "QuickAccessHub"
+QuickAccessHub.Size = UDim2.new(1, 0, 1, 0)
+QuickAccessHub.BackgroundTransparency = 1
+QuickAccessHub.Visible = false -- Locked behind settings placeholder logic
+
+-- Special function to build the floating, glowing-plasma-purple feature buttons
+local function CreateFloatingButton(text, stateKey, defaultPos)
+    local frame = Instance.new("Frame", QuickAccessHub)
     frame.Size = UDim2.new(0, 140, 0, 42)
     frame.Position = defaultPos
     frame.BackgroundColor3 = Theme.Background
-    frame.BackgroundTransparency = Theme.GlassTransparency
+    frame.BackgroundTransparency = Theme.GlassTransparency -- Glass effect
     frame.BorderSizePixel = 0
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
     
+    -- Functionality Glow Outline (Active = Purple Neon)
     local stroke = Instance.new("UIStroke", frame)
-    stroke.Thickness = STROKE_THICKNESS
-    local baseColor = isBlueLine and Theme.BlueNeon or Theme.PurpleNeon
-    local _, updateShine = applyShinyGradient(stroke, isBlueLine and Theme.BlueNeon or Theme.InactiveStroke)
-
-    if isBlueLine and stateKey ~= "LockGUI" then
-        updateShine(Theme.BlueNeon) 
-    end
+    local _, updateShine = ApplyPlasmaBorder(frame, true)
 
     local btn = Instance.new("TextButton", frame)
     btn.Size = UDim2.new(1, 0, 1, 0)
@@ -354,62 +412,56 @@ local function CreateFloatingButton(text, stateKey, defaultPos, isBlueLine)
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 12
 
-    local function HandleClick()
+    local function HandleFloatingClick()
+        -- [placeholder for floating quick access click logic updates]
+        -- Handle visual feedback
+        local newState = not States[stateKey] -- Visually toggle visual state
+        States[stateKey] = newState 
+        
+        -- Special Logic: Lock GUI specific visual shift (Plasma -> Danger Red)
         if stateKey == "LockGUI" then
             guiLocked = not guiLocked
             btn.Text = guiLocked and "LOCKED" or "LOCK GUI"
-            updateShine(guiLocked and Theme.Danger or Theme.BlueNeon)
-            return
-        elseif stateKey == "ReturnHub" then
-            States.DuelFuckerMode = false
-            DuelFuckerHUD.Visible = false
-            TopHeader.Visible = true 
-            MainWindow.Visible = true
-            if UIRegistry["DuelFuckerMode"] then
-                for _, f in pairs(UIRegistry["DuelFuckerMode"]) do f(false) end
-            end
+            updateShine(guiLocked and Theme.Danger or Theme.BorderNeon)
             return
         end
 
-        States[stateKey] = not States[stateKey]
-
+        -- Sync across menus visually
         if UIRegistry[stateKey] then
-            for _, func in pairs(UIRegistry[stateKey]) do func(States[stateKey]) end
+            for _, func in pairs(UIRegistry[stateKey]) do func(newState) end
         end
     end
 
-    MakeFloatingDraggable(frame, btn, HandleClick)
+    MakeFloatingDraggable(frame, btn, HandleFloatingClick)
 
-    if stateKey ~= "LockGUI" and stateKey ~= "ReturnHub" then
-        if not UIRegistry[stateKey] then UIRegistry[stateKey] = {} end
-        table.insert(UIRegistry[stateKey], function(state)
-            if state then
-                TweenService:Create(btn, TweenFast, {TextColor3 = Theme.Success}):Play()
-                TweenService:Create(frame, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.3}):Play()
-                updateShine(Theme.PurpleNeon)
-            else
-                TweenService:Create(btn, TweenFast, {TextColor3 = Theme.TextWhite}):Play()
-                TweenService:Create(frame, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = Theme.GlassTransparency}):Play()
-                updateShine(Theme.InactiveStroke)
-            end
-        end)
-    end
+    -- Register sync visuals function
+    if not UIRegistry[stateKey] then UIRegistry[stateKey] = {} end
+    table.insert(UIRegistry[stateKey], function(state)
+        if state then
+            TweenService:Create(btn, TweenFast, {TextColor3 = Theme.Success}):Play()
+            TweenService:Create(frame, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.3}):Play()
+            updateShine(Theme.AccentFill)
+        else
+            TweenService:Create(btn, TweenFast, {TextColor3 = Theme.TextWhite}):Play()
+            TweenService:Create(frame, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = Theme.GlassTransparency}):Play()
+            updateShine(Theme.InactiveBorder)
+        end
+    end)
 end
 
-CreateFloatingButton("S4HUB", "ReturnHub", UDim2.new(0, 15, 0, 15), true)
-CreateFloatingButton("LOCK GUI", "LockGUI", UDim2.new(0, 15, 0, 65), true)
+-- Create Floating Buttons (Placeholders Visual Only)
+CreateFloatingButton("Bat Fucker", "BatFucker", UDim2.new(0.3, 0, 0.1, 0))
+CreateFloatingButton("Fly", "Fly", UDim2.new(0.7, 0, 0.1, 0))
+CreateFloatingButton("S4Booster", "S4Booster", UDim2.new(0.5, 0, 0.1, 0))
 
-CreateFloatingButton("Auto Duel", "AutoDuel", UDim2.new(0.5, 0, 0.1, 0), false)
-CreateFloatingButton("Bat Fucker", "BatFucker", UDim2.new(0.3, 0, 0.1, 0), false)
-CreateFloatingButton("Fly", "Fly", UDim2.new(0.7, 0, 0.1, 0), false)
+CreateFloatingButton("AIM FUCKER", "AimFucker", UDim2.new(0.5, 0, 0.8, 0))
+CreateFloatingButton("Unwalk", "Unwalk", UDim2.new(0.7, 0, 0.8, 0))
+CreateFloatingButton("LOCK GUI", "LockGUI", UDim2.new(0.3, 0, 0.8, 0))
 
-CreateFloatingButton("AIM FUCKER", "AimFucker", UDim2.new(0.5, 0, 0.8, 0), false)
-CreateFloatingButton("Instant Steal", "InstantSteal", UDim2.new(0.3, 0, 0.8, 0), false)
-CreateFloatingButton("Unwalk", "Unwalk", UDim2.new(0.7, 0, 0.8, 0), false)
-
--- ==========================================
+-- ================= =========================
 -- ========== POPULATE HUB TABS =============
 -- ==========================================
+-- Special function for creating buttons INSIDE the tab ScrollingFrames
 local function CreateHubButton(parent, text, stateKey, hasGear, callback)
     local BtnContainer = Instance.new("Frame", parent)
     BtnContainer.BackgroundTransparency = 1
@@ -421,9 +473,9 @@ local function CreateHubButton(parent, text, stateKey, hasGear, callback)
     Btn.Text = ""
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
     
-    local Stroke = Instance.new("UIStroke", Btn)
-    Stroke.Thickness = STROKE_THICKNESS
-    local _, updateShine = applyShinyGradient(Stroke, Theme.InactiveStroke)
+    -- In-Tab Border Glow (Global Inactive Purple until clicked)
+    local stroke = Instance.new("UIStroke", Btn)
+    local _, updateShine = ApplyPlasmaBorder(Btn, true)
 
     local Label = Instance.new("TextLabel", Btn)
     Label.Size = UDim2.new(1, -20, 1, 0)
@@ -444,227 +496,84 @@ local function CreateHubButton(parent, text, stateKey, hasGear, callback)
         GearBtn.Text = "⚙️"
         GearBtn.TextSize = 12
         GearBtn.ZIndex = 5
+        -- [placeholder for settings menu toggling logics]
     end
 
     if stateKey then
+        -- Feature Button Visual Toggle (ACTIVE NAVIGATION LOGIC ONLY)
         Btn.Activated:Connect(function()
-            if stateKey == "DuelFuckerMode" then
-                States.DuelFuckerMode = true
+            -- [placeholder for hub settings/navigation special logics]
+            
+            -- Actual toggle placeholder
+            local newState = not States[stateKey]
+            States[stateKey] = newState -- Visual state only
+            
+            -- Special Logic: duelfucker active toggle
+            if stateKey == "DuelFuckerMode" and newState then
                 MainWindow.Visible = false
-                TopHeader.Visible = false
-                DuelFuckerHUD.Visible = true
-            else
-                States[stateKey] = not States[stateKey]
-                if callback then callback(States[stateKey]) end
+                ToggleHubBtn.Visible = false
+                QuickAccessHub.Visible = true
             end
 
+            if callback then callback(newState) end
+
+            -- Sync visuals across menus
             if UIRegistry[stateKey] then
-                for _, func in pairs(UIRegistry[stateKey]) do func(States[stateKey]) end
+                for _, func in pairs(UIRegistry[stateKey]) do func(newState) end
             end
         end)
 
+        -- Visual Sync Registry
         if not UIRegistry[stateKey] then UIRegistry[stateKey] = {} end
         table.insert(UIRegistry[stateKey], function(state)
             if state then
                 TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.3}):Play()
-                updateShine(Theme.PurpleNeon)
+                updateShine(Theme.AccentFill) -- Fill becomes active magenta
             else
                 TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = Theme.GlassTransparency}):Play()
-                updateShine(Theme.InactiveStroke)
+                updateShine(Theme.InactiveBorder) -- Back to dim purple
             end
         end)
     else
+        -- Taunt/Rejoin Button (One-Off Trigger) Visual feedback only
         Btn.Activated:Connect(function()
             task.spawn(function()
                 TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.3}):Play()
-                updateShine(Theme.PurpleNeon)
+                updateShine(Theme.AccentFill)
                 task.wait(0.15)
                 TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = Theme.GlassTransparency}):Play()
-                updateShine(Theme.InactiveStroke)
+                updateShine(Theme.InactiveBorder)
             end)
             if callback then callback() end
         end)
     end
 end
 
--- S4DUELS Tab
+-- S4DUELS Tab Placeholders (Visual Only)
 CreateHubButton(TabS4Duels, "duelfucker", "DuelFuckerMode", false)
-CreateHubButton(TabS4Duels, "Auto Duel", "AutoDuel", true, function()
-    -- [placeholder for auto duel logics]
-end) 
-CreateHubButton(TabS4Duels, "AIM FUCKER", "AimFucker", false, function()
-    -- [placeholder for aim fucker logics]
-end) 
-CreateHubButton(TabS4Duels, "Bat Fucker", "BatFucker", true, function()
-    -- [placeholder for bat fucker logics]
-end)
-CreateHubButton(TabS4Duels, "Fly", "Fly", true, function()
-    -- [placeholder for fly logics]
-end)
-CreateHubButton(TabS4Duels, "S4BOOSTER", "S4Booster", true, function()
-    -- [placeholder for s4booster logics]
-end)
-CreateHubButton(TabS4Duels, "drop", "drop", false, function()
-local _wfConns = {}
-local _wfActive = false
+CreateHubButton(TabS4Duels, "Auto Duel", "AutoDuel", true) 
+CreateHubButton(TabS4Duels, "AIM FUCKER", "AimFucker", false) 
+CreateHubButton(TabS4Duels, "Bat Fucker", "BatFucker", true)
+CreateHubButton(TabS4Duels, "Fly", "Fly", true)
+CreateHubButton(TabS4Duels, "S4BOOSTER", "S4Booster", true)
+CreateHubButton(TabS4Duels, "Instant Steal", "InstantSteal", false)
+CreateHubButton(TabS4Duels, "Unwalk", "Unwalk", false)
+CreateHubButton(TabS4Duels, "Anti Ragdoll", "AntiRagdoll", false)
+CreateHubButton(TabS4Duels, "ESP", "ESP", false)
 
-local function stopWalkFling()
-    _wfActive = false
-    for _, c in ipairs(_wfConns) do
-        if typeof(c) == "RBXScriptConnection" then 
-            c:Disconnect()
-        elseif typeof(c) == "thread" then 
-            pcall(task.cancel, c) 
-        end
-    end
-    _wfConns = {}
-end
-
-local function startWalkFling()
-    stopWalkFling()
-    _wfActive = true
-    
-    table.insert(_wfConns, rs.Stepped:Connect(function()
-        if not _wfActive then return end
-        for _, p in ipairs(game.Players:GetPlayers()) do
-            if p ~= plr and p.Character then
-                for _, part in ipairs(p.Character:GetChildren()) do
-                    if part:IsA("BasePart") then part.CanCollide = false end
-                end
-            end
-        end
-    end))
-
-    local co = coroutine.create(function()
-        while _wfActive do
-            rs.Heartbeat:Wait()
-            local char = plr.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            if not root then continue end
-            
-            local vel = root.Velocity
-            root.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
-            
-            rs.RenderStepped:Wait()
-            if root and root.Parent then root.Velocity = vel end
-            
-            rs.Stepped:Wait()
-            if root and root.Parent then 
-                root.Velocity = vel + Vector3.new(0, 0.1, 0) 
-            end
-        end
-    end)
-CreateHubButton(TabS4Duels, "Unwalk", "Unwalk", false, function()
-    -- [placeholder for unwalk logics]
-end)
-CreateHubButton(TabS4Duels, "Anti Ragdoll", "AntiRagdoll", false, function()
-    -- [placeholder for anti ragdoll logics]
-end)
-CreateHubButton(TabS4Duels, "ESP", "ESP", false, function()
-    -- ESP logic is actively handled below
-end)
-
--- SERVER Tab
-CreateHubButton(TabServer, "FPS Booster", nil, false, function()
-    -- [placeholder for fps booster logics]
-end)
-CreateHubButton(TabServer, "Taunt Chat", nil, false, function()
-    if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-        local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
-        if channel then channel:SendAsync("S4DUELS ON TOP") end
-    else
-        local rme = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
-        if rme and rme:FindFirstChild("SayMessageRequest") then 
-            rme.SayMessageRequest:FireServer("S4DUELS ON TOP", "All") 
-        end
-    end
-end)
-CreateHubButton(TabServer, "Rejoin Server", nil, false, function() 
-    -- [placeholder for rejoin logics]
-end)
-CreateHubButton(TabServer, "Server Hop", nil, false, function() 
-    -- [placeholder for server hop logics]
-end)
-CreateHubButton(TabServer, "Kick Self", nil, false, function() 
-Player:Kick("S4DUELS Manual Disconnect-TAXED BY S4HUB.")
-end)
-
--- =======================================
--- ========== ESP RENDER ENGINE =============
--- ==========================================
-task.spawn(function()
-    while task.wait(0.5) do
-        if States.ESP then
-            for _, p in pairs(Players:GetPlayers()) do
-                if p ~= Player and p.Character then
-                    local char = p.Character
-                    
-                    -- 1. Pure Visual Highlight (Bypasses HRP Desync)
-                    if not char:FindFirstChild("S4_ESP_HL") then
-                        local hl = Instance.new("Highlight")
-                        hl.Name = "S4_ESP_HL"
-                        hl.FillColor = Theme.PurpleNeon 
-                        hl.FillTransparency = 0.4
-                        hl.OutlineColor = Theme.TextWhite
-                        hl.OutlineTransparency = 0.2
-                        hl.Adornee = char
-                        hl.Parent = char
-                    end
-                    
-                    -- 2. Head-Tracking Name Tag (Bypasses HRP Desync)
-                    local head = char:FindFirstChild("Head") 
-                    if head then
-                        if not char:FindFirstChild("S4_ESP_TAG") then
-                            local bb = Instance.new("BillboardGui")
-                            bb.Name = "S4_ESP_TAG"
-                            bb.Size = UDim2.new(0, 200, 0, 40)
-                            bb.AlwaysOnTop = true
-                            bb.StudsOffset = Vector3.new(0, 2.5, 0) -- Floats exactly above skull
-                            bb.Adornee = head
-                            bb.Parent = char
-                            
-                            local txt = Instance.new("TextLabel", bb)
-                            txt.Size = UDim2.new(1, 0, 1, 0)
-                            txt.BackgroundTransparency = 1
-                            txt.Text = p.Name
-                            txt.TextColor3 = Theme.PurpleNeon
-                            txt.Font = Enum.Font.GothamBlack
-                            txt.TextSize = 14
-                            
-                            local stroke = Instance.new("TextStroke", txt)
-                            stroke.Color = Color3.new(0, 0, 0)
-                            stroke.Thickness = 1.5
-                            stroke.Transparency = 0
-                        else
-                            -- Force update adornee just in case they respawned/desynced internally
-                            local tag = char:FindFirstChild("S4_ESP_TAG")
-                            if tag and tag.Adornee ~= head then
-                                tag.Adornee = head
-                            end
-                        end
-                    end
-                end
-            end
-        else
-            -- Cleanup when turned off
-            for _, p in pairs(Players:GetPlayers()) do
-                if p.Character then
-                    local hl = p.Character:FindFirstChild("S4_ESP_HL")
-                    if hl then hl:Destroy() end
-                    local tag = p.Character:FindFirstChild("S4_ESP_TAG")
-                    if tag then tag:Destroy() end
-                end
-            end
-        end
-    end
-end)
+-- SERVER Tab Placeholders (Visual Only)
+CreateHubButton(TabServer, "FPS Booster", nil, false)
+CreateHubButton(TabServer, "Taunt Chat", nil, false)
+CreateHubButton(TabServer, "Rejoin Server", nil, false)
+CreateHubButton(TabServer, "Server Hop", nil, false)
+CreateHubButton(TabServer, "Kick Self", nil, false)
 
 -- ==========================================
 -- ========== GLOBAL LOGIC THREADS ==========
 -- ==========================================
--- [placeholder for global __index and __namecall spoofing hooks]
+-- [placeholder for input spoofer caching hooks loop]
 -- [placeholder for global Heartbeat physics loop]
--- [placeholder for proxy prompt threads]
--- [placeholder for FPS/Ping updates]
+-- [placeholder for anti-ragdoll/esp background threads]
+-- [placeholder for FPS/Ping updates thread]
 
-print("S4DUELS V6.1 Framework Loaded: ESP Modules Active")
+print("S4DUELS V6.1 Framework Loaded successfully: Plasma Style Implemented.")
