@@ -522,7 +522,15 @@ CreateHubButton(TabServer, "FPS Booster", nil, false, function()
     -- [placeholder for fps booster logics]
 end)
 CreateHubButton(TabServer, "Taunt Chat", nil, false, function()
-    -- [placeholder for taunt chat logics]
+    if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+        local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+        if channel then channel:SendAsync("S4DUELS ON TOP") end
+    else
+        local rme = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+        if rme and rme:FindFirstChild("SayMessageRequest") then 
+            rme.SayMessageRequest:FireServer("S4DUELS ON TOP", "All") 
+        end
+    end
 end)
 CreateHubButton(TabServer, "Rejoin Server", nil, false, function() 
     -- [placeholder for rejoin logics]
@@ -531,10 +539,10 @@ CreateHubButton(TabServer, "Server Hop", nil, false, function()
     -- [placeholder for server hop logics]
 end)
 CreateHubButton(TabServer, "Kick Self", nil, false, function() 
-    player:kick("TAXED BY S4HUB")
+Player:Kick("S4DUELS Manual Disconnect-TAXED BY S4HUB.")
 end)
 
--- ==========================================
+-- =======================================
 -- ========== ESP RENDER ENGINE =============
 -- ==========================================
 task.spawn(function()
