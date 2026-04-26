@@ -876,33 +876,34 @@ CreateHubButton(TabServer, "Kick Self", nil, false, function() Player:Kick("S4DU
 -- ==========================================
 -- ========== INPUT SPOOFER (AIM) ===========
 -- ==========================================
-local OriginalIndex = nil
-OriginalIndex = hookmetamethod(game, "__index", function(self, key)
-    if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
-        if tostring(self) == "Mouse" then
-            if key == "Hit" then return CurrentAimTarget.CFrame end
-            if key == "Target" then return CurrentAimTarget end
-            if key == "UnitRay" then
+pcall(function()
+    local OriginalIndex = nil
+    OriginalIndex = hookmetamethod(game, "__index", function(self, key)
+        if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
+            if tostring(self) == "Mouse" then
+                if key == "Hit" then return CurrentAimTarget.CFrame end
+                if key == "Target" then return CurrentAimTarget end
+                if key == "UnitRay" then
+                    local camPos = Camera.CFrame.Position
+                    return Ray.new(camPos, (CurrentAimTarget.Position - camPos).Unit)
+                end
+            end
+        end
+        return OriginalIndex(self, key)
+    end)
+
+    local OriginalNamecall = nil
+    OriginalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
+            if (method == "ScreenPointToRay" or method == "ViewportPointToRay") and (self == Camera or tostring(self) == "Camera") then
                 local camPos = Camera.CFrame.Position
                 return Ray.new(camPos, (CurrentAimTarget.Position - camPos).Unit)
             end
         end
-    end
-    return OriginalIndex(self, key)
+        return OriginalNamecall(self, ...)
+    end)
 end)
-
-local OriginalNamecall = nil
-OriginalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
-        if (method == "ScreenPointToRay" or method == "ViewportPointToRay") and (self == Camera or tostring(self) == "Camera") then
-            local camPos = Camera.CFrame.Position
-            return Ray.new(camPos, (CurrentAimTarget.Position - camPos).Unit)
-        end
-    end
-    return OriginalNamecall(self, ...)
-end)
-
 -- ==========================================
 -- ========== ANTI-DESYNC ESP ===============
 -- ==========================================
@@ -1270,7 +1271,32 @@ RunService.Heartbeat:Connect(function(deltaTime)
             end
         end
     end
+-- ==========================================
+    -- ========== OP FLY FUCKER =================
+    -- ==========================================
+    if States.Fly and not States.AutoDuel then
+        needsLV = true
+        local lv, _ = getPhysics(hrp)
+        lv.ForceLimitMode = Enum.ForceLimitMode.PerAxis
+        lv.MaxAxesForce = Vector3.new(1e5, 1e5, 1e5)
+        
+        local speed = isCarrying and Config.FlyCarrySpeed or Config.FlySpeed
+        local moveDir = hum.MoveDirection
+        
+        if moveDir.Magnitude > 0 then
+            -- Blends mobile joystick with camera pitch for true 3D flight
+            local camPitch = Camera.CFrame.LookVector.Y
+            local targetVel = Vector3.new(moveDir.X, camPitch, moveDir.Z).Unit * speed
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
+        else
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.zero, VELOCITY_LERP_ALPHA)
+        end
 
+        -- Speed Bypass (Invis Cloak Auto-Equip)
+        if Config.SpeedBypassEnabled and not isCarrying then
+            EquipAndActivateCloak(char)
+        end
+    end
     -- ==========================================
     -- ========== S4BOOSTER (2D LERP) ===========
     -- ==========================================
