@@ -868,3 +868,559 @@ end)
 CreateHubButton(TabServer, "Rejoin Server", nil, false, function() game:GetService("TeleportService"):Teleport(game.PlaceId, Player) end)
 CreateHubButton(TabServer, "Server Hop", nil, false, function() game:GetService("TeleportService"):Teleport(game.PlaceId) end)
 CreateHubButton(TabServer, "Kick Self", nil, false, function() Player:Kick("S4DUELS Manual Disconnect - Evading Anti-Cheat.") end)
+-- ==========================================
+-- ========== INPUT SPOOFER (AIM) ===========
+-- ==========================================
+pcall(function()
+    local OriginalIndex = nil
+    OriginalIndex = hookmetamethod(game, "__index", function(self, key)
+        if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
+            if tostring(self) == "Mouse" then
+                if key == "Hit" then return CurrentAimTarget.CFrame end
+                if key == "Target" then return CurrentAimTarget end
+                if key == "UnitRay" then
+                    local camPos = Camera.CFrame.Position
+                    return Ray.new(camPos, (CurrentAimTarget.Position - camPos).Unit)
+                end
+            end
+        end
+        return OriginalIndex(self, key)
+    end)
+
+    local OriginalNamecall = nil
+    OriginalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
+            if (method == "ScreenPointToRay" or method == "ViewportPointToRay") and (self == Camera or tostring(self) == "Camera") then
+                local camPos = Camera.CFrame.Position
+                return Ray.new(camPos, (CurrentAimTarget.Position - camPos).Unit)
+            end
+        end
+        return OriginalNamecall(self, ...)
+    end)
+end)
+
+-- ==========================================
+-- ========== ANTI-DESYNC ESP ===============
+-- ==========================================
+task.spawn(function()
+    while task.wait(0.5) do
+        if States.ESP then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= Player and p.Character then
+                    local char = p.Character
+                    if not char:FindFirstChild("S4_ESP_HL") then
+                        local hl = Instance.new("Highlight")
+                        hl.Name = "S4_ESP_HL"
+                        hl.FillColor = Theme.BorderNeon 
+                        hl.FillTransparency = 0.4
+                        hl.OutlineColor = Theme.TextWhite
+                        hl.OutlineTransparency = 0.2
+                        hl.Adornee = char
+                        hl.Parent = char
+                    end
+                    local head = char:FindFirstChild("Head") 
+                    if head then
+                        if not char:FindFirstChild("S4_ESP_TAG") then
+                            local bb = Instance.new("BillboardGui")
+                            bb.Name = "S4_ESP_TAG"
+                            bb.Size = UDim2.new(0, 200, 0, 40)
+                            bb.AlwaysOnTop = true
+                            bb.StudsOffset = Vector3.new(0, 2.5, 0)
+                            bb.Adornee = head
+                            bb.Parent = char
+                            
+                            local txt = Instance.new("TextLabel", bb)
+                            txt.Size = UDim2.new(1, 0, 1, 0)
+                            txt.BackgroundTransparency = 1
+                            txt.Text = p.Name
+                            txt.TextColor3 = Theme.AccentFill
+                            txt.Font = Enum.Font.GothamBlack
+                            txt.TextSize = 14
+                            
+                            local stroke = Instance.new("TextStroke", txt)
+                            stroke.Color = Color3.new(0, 0, 0)
+                            stroke.Thickness = 1.5
+                            stroke.Transparency = 0
+                        else
+                            local tag = char:FindFirstChild("S4_ESP_TAG")
+                            if tag and tag.Adornee ~= head then
+                                tag.Adornee = head
+                            end
+                        end
+                    end
+                end
+            end
+        else
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Character then
+                    local hl = p.Character:FindFirstChild("S4_ESP_HL")
+                    if hl then hl:Destroy() end
+                    local tag = p.Character:FindFirstChild("S4_ESP_TAG")
+                    if tag then tag:Destroy() end
+                end
+            end
+        end
+    end
+end)
+
+-- ==========================================
+-- ========== INSTANT STEAL CACHE ===========
+-- ==========================================
+local promptCache = {}
+local function updatePromptCache()
+    promptCache = {}
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then table.insert(promptCache, obj) end
+    end
+end
+updatePromptCache()
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("ProximityPrompt") then table.insert(promptCache, obj) end
+end)
+
+-- ==========================================
+-- ========== ANTI-RAGDOLL V2 ===============
+-- ==========================================
+local isRagdollBoosting = false
+local RAGDOLL_BOOST_SPEED = 400
+local DEFAULT_WALK_SPEED = 16
+
+local function forceExitRagdoll(char, hum, root)
+    pcall(function() Player:SetAttribute("RagdollEndTime", workspace:GetServerTimeNow()) end)
+    for _, descendant in ipairs(char:GetDescendants()) do
+        if descendant:IsA("BallSocketConstraint") or (descendant:IsA("Attachment") and string.find(descendant.Name, "RagdollAttachment")) then
+            descendant:Destroy()
+        end
+    end
+    if not isRagdollBoosting then
+        isRagdollBoosting = true
+        hum.WalkSpeed = RAGDOLL_BOOST_SPEED
+    end
+    if hum.Health > 0 then
+        hum:ChangeState(Enum.HumanoidStateType.Running)
+    end
+    root.Anchored = false
+end
+
+local function isRagdolled(hum)
+    local state = hum:GetState()
+    local ragdollStates = {[Enum.HumanoidStateType.Physics] = true, [Enum.HumanoidStateType.Ragdoll] = true, [Enum.HumanoidStateType.FallingDown] = true}
+    if ragdollStates[state] then return true end
+    local endTime = Player:GetAttribute("RagdollEndTime")
+    if endTime and (endTime - workspace:GetServerTimeNow()) > 0 then return true end
+    return false
+end
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if States.AntiRagdoll then
+            local char = Player.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if hum and root then
+                if isRagdolled(hum) then
+                    forceExitRagdoll(char, hum, root)
+                elseif isRagdollBoosting and not isRagdolled(hum) then
+                    isRagdollBoosting = false
+                    hum.WalkSpeed = DEFAULT_WALK_SPEED
+                end
+            end
+        end
+    end
+end)
+
+-- ==========================================
+-- ========== CORE PHYSICS ENGINE ===========
+-- ==========================================
+local function clearPhysics(char)
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChild("Humanoid")
+    if hrp then
+        local att = hrp:FindFirstChild("S4_Attachment")
+        local lv = hrp:FindFirstChild("S4_LinearVelocity")
+        local ao = hrp:FindFirstChild("S4_AlignOrientation")
+        if att then att:Destroy() end
+        if lv then lv:Destroy() end
+        if ao then ao:Destroy() end
+    end
+    if hum and not States.AimFucker then hum.AutoRotate = true end
+end
+
+local function getPhysics(hrp)
+    local att = hrp:FindFirstChild("S4_Attachment")
+    if not att then
+        att = Instance.new("Attachment", hrp)
+        att.Name = "S4_Attachment"
+    end
+    local lv = hrp:FindFirstChild("S4_LinearVelocity")
+    if not lv then
+        lv = Instance.new("LinearVelocity", hrp)
+        lv.Name = "S4_LinearVelocity"
+        lv.Attachment0 = att
+        lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
+        lv.MaxForce = 0 
+        lv.RelativeTo = Enum.ActuatorRelativeTo.World
+    end
+    local ao = hrp:FindFirstChild("S4_AlignOrientation")
+    if not ao then
+        ao = Instance.new("AlignOrientation", hrp)
+        ao.Name = "S4_AlignOrientation"
+        ao.Attachment0 = att
+        ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+        ao.RigidityEnabled = false 
+        ao.MaxTorque = 100000
+        ao.Responsiveness = 40 
+    end
+    return lv, ao
+end
+
+-- ==========================================
+-- ========== INVIS CLOAK HELPER ============
+-- ==========================================
+local cloakEquipThread = nil
+
+local function EquipAndActivateCloak(char)
+    if not char then return end
+    
+    if cloakEquipThread then pcall(task.cancel, cloakEquipThread) end
+    
+    cloakEquipThread = task.spawn(function()
+        local hum = char:FindFirstChild("Humanoid")
+        local currentTool = char:FindFirstChildOfClass("Tool")
+        
+        if currentTool and currentTool.Name == "Invisibility Cloak" then
+            pcall(function() currentTool:Activate() end)
+            return
+        end
+        
+        if currentTool and hum then
+            task.wait(2.5) 
+            pcall(function() hum:UnequipTools() end)
+            task.wait(0.05) 
+        end
+
+        local cloak = Player.Backpack:FindFirstChild("Invisibility Cloak") or char:FindFirstChild("Invisibility Cloak")
+        if cloak then
+            cloak.Parent = char
+            task.wait(0.1) 
+            if cloak.Parent == char then
+                pcall(function() cloak:Activate() end)
+            end
+        end
+    end)
+end
+
+-- ==========================================
+-- ========== WAYPOINTS (AUTO DUEL) =========
+-- ==========================================
+local RightWaypoints = {
+    Vector3.new(-473.04, -6.99, 29.71), Vector3.new(-483.57, -5.10, 18.74),
+    Vector3.new(-475.00, -6.99, 26.43), Vector3.new(-474.67, -6.94, 105.48),
+}
+local LeftWaypoints = {
+    Vector3.new(-472.49, -7.00, 90.62), Vector3.new(-484.62, -5.10, 100.37),
+    Vector3.new(-475.08, -7.00, 93.29), Vector3.new(-474.22, -6.96, 16.18),
+}
+local currentWaypointIndex = 1
+-- ==========================================
+-- ========== MAIN HEARTBEAT LOOP ===========
+-- ==========================================
+local lastAimUpdate = 0
+local VELOCITY_LERP_ALPHA = 0.15 
+local lastCarryState = false
+
+RunService.Heartbeat:Connect(function(deltaTime)
+    local char = Player.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp then return end
+
+    local needsLV = false
+    local needsAO = false
+    local isCarrying = Player:GetAttribute("Stealing") or false
+
+    -- 70Hz Aim & Tool Cache Update
+    local tool = char:FindFirstChildOfClass("Tool")
+    CachedHoldingTool = (tool ~= nil)
+
+    if tick() - lastAimUpdate > 0.014 then 
+        lastAimUpdate = tick()
+        if States.AimFucker or States.BatFucker then
+            local shortestDist = math.huge
+            local targetPart = nil
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                    local part = p.Character:FindFirstChild("Torso") or p.Character:FindFirstChild("UpperTorso")
+                    if part then
+                        local dist = (part.Position - hrp.Position).Magnitude
+                        if dist < shortestDist then
+                            shortestDist = dist
+                            targetPart = part
+                        end
+                    end
+                end
+            end
+            if CurrentAimTarget ~= targetPart then
+                MedusaUsedOnTarget = false 
+            end
+            CurrentAimTarget = targetPart
+        else
+            CurrentAimTarget = nil
+        end
+    end
+
+    -- ==========================================
+    -- ========== UNWALK & INSTANT STEAL ========
+    -- ==========================================
+    if States.Unwalk then
+        local anim = char:FindFirstChild("Animate")
+        if anim then anim.Disabled = true end
+        for _, track in pairs(hum:GetPlayingAnimationTracks()) do track:Stop() end
+    end
+
+    if States.InstantSteal and not isCarrying then
+        local closestPrompt = nil
+        local closestDist = math.huge
+
+        for i = #promptCache, 1, -1 do
+            local prompt = promptCache[i]
+            if not prompt or not prompt.Parent then
+                table.remove(promptCache, i)
+            elseif prompt.Enabled then
+                local act = tostring(prompt.ActionText)
+                if act == "Steal" or act == "Rob" or act == "Collect" then
+                    local part = prompt.Parent
+                    local pos = part:IsA("BasePart") and part.Position or (part:IsA("Attachment") and part.WorldPosition or nil)
+                    if pos then
+                        local dist = (pos - hrp.Position).Magnitude
+                        if dist <= prompt.MaxActivationDistance then
+                            if dist < closestDist then
+                                closestDist = dist
+                                closestPrompt = prompt
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        if closestPrompt and not closestPrompt:GetAttribute("S4_Stealing") then
+            closestPrompt:SetAttribute("S4_Stealing", true)
+            task.spawn(function()
+                pcall(function()
+                    closestPrompt.RequiresLineOfSight = false
+                    closestPrompt.HoldDuration = 0.17
+                    closestPrompt:InputHoldBegin()
+                    task.wait(0.17)
+                    closestPrompt:InputHoldEnd()
+                end)
+                task.wait(0.2) 
+                if closestPrompt then closestPrompt:SetAttribute("S4_Stealing", nil) end
+            end)
+        end
+    end
+
+    -- ==========================================
+    -- ========== AUTO DUEL (SMART PATH) ========
+    -- ==========================================
+    if States.AutoDuel then
+        hum.AutoRotate = false
+        needsLV = true
+        needsAO = true
+        
+        local lv, ao = getPhysics(hrp)
+        lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
+        lv.MaxForce = 1e5
+        
+        local targetWaypoints = Config.AutoPlayLane == "Right" and RightWaypoints or LeftWaypoints
+        local speed = isCarrying and Config.AutoDuelCarrySpeed or Config.AutoDuelSpeed
+        
+        if isCarrying and currentWaypointIndex > 1 then
+            currentWaypointIndex = currentWaypointIndex - 1
+        elseif not isCarrying and currentWaypointIndex < #targetWaypoints then
+            currentWaypointIndex = currentWaypointIndex + 1
+        end
+        
+        local targetPos = targetWaypoints[currentWaypointIndex]
+        if targetPos then
+            local myPos = hrp.Position
+            local diff = Vector3.new(targetPos.X, 0, targetPos.Z) - Vector3.new(myPos.X, 0, myPos.Z)
+            
+            ao.CFrame = CFrame.lookAt(myPos, Vector3.new(targetPos.X, myPos.Y, targetPos.Z))
+            
+            if diff.Magnitude > 3 then
+                local targetVel = diff.Unit * speed
+                lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.new(targetVel.X, hrp.AssemblyLinearVelocity.Y, targetVel.Z), VELOCITY_LERP_ALPHA)
+            else
+                if currentWaypointIndex == #targetWaypoints and not isCarrying then
+                    lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0), VELOCITY_LERP_ALPHA)
+                elseif currentWaypointIndex == 1 and isCarrying then
+                    lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0), VELOCITY_LERP_ALPHA)
+                end
+            end
+        end
+    end
+
+    -- ==========================================
+    -- ========== S4BOOSTER (2D LERP) ===========
+    -- ==========================================
+    if States.S4Booster and not States.AutoDuel then
+        needsLV = true
+        local lv, _ = getPhysics(hrp)
+        
+        lv.ForceLimitMode = Enum.ForceLimitMode.PerAxis
+        lv.MaxAxesForce = Vector3.new(1e5, 0, 1e5) 
+        
+        if hum.MoveDirection.Magnitude > 0 then
+            local speed = isCarrying and Config.CarrySpeed or Config.WalkSpeed
+            local velocityDir = hum.MoveDirection * speed
+            local targetVel = Vector3.new(velocityDir.X, hrp.AssemblyLinearVelocity.Y, velocityDir.Z)
+            
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
+        else
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0), VELOCITY_LERP_ALPHA)
+        end
+    end
+
+    -- ==========================================
+    -- ========== OP FLY FUCKER =================
+    -- ==========================================
+    if States.Fly and not States.AutoDuel then
+        needsLV = true
+        local lv, _ = getPhysics(hrp)
+        lv.ForceLimitMode = Enum.ForceLimitMode.PerAxis
+        lv.MaxAxesForce = Vector3.new(1e5, 1e5, 1e5)
+        
+        local speed = isCarrying and Config.FlyCarrySpeed or Config.FlySpeed
+        local moveDir = hum.MoveDirection
+        
+        if moveDir.Magnitude > 0 then
+            local camPitch = Camera.CFrame.LookVector.Y
+            local targetVel = Vector3.new(moveDir.X, camPitch, moveDir.Z).Unit * speed
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
+        else
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.zero, VELOCITY_LERP_ALPHA)
+        end
+
+        if Config.SpeedBypassEnabled and not isCarrying then
+            EquipAndActivateCloak(char)
+        end
+    end
+
+    -- ==========================================
+    -- ========== BAT FUCKER (SMOOTH AIM) =======
+    -- ==========================================
+    if States.BatFucker and not States.AutoDuel then
+        hum.AutoRotate = false 
+        needsLV = true
+        needsAO = true
+        
+        local bfTarget = CurrentAimTarget 
+
+        if bfTarget then
+            local lv, ao = getPhysics(hrp)
+            lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
+            lv.MaxForce = 45000 
+            
+            local targetPos = bfTarget.Position
+            local myPos = hrp.Position
+            local distanceToTarget = (targetPos - myPos).Magnitude
+
+            if distanceToTarget > 0.1 then
+                ao.CFrame = CFrame.lookAt(myPos, Vector3.new(targetPos.X, myPos.Y, targetPos.Z))
+            end
+
+            local dirFromTarget = (myPos - targetPos)
+            if dirFromTarget.Magnitude > 0.1 then 
+                dirFromTarget = dirFromTarget.Unit 
+            else 
+                dirFromTarget = Vector3.new(0, 0, 1) 
+            end
+            
+            local optimalStrikePos = targetPos + (dirFromTarget * 3)
+            local distToOptimal = (optimalStrikePos - myPos).Magnitude
+            local targetVel
+
+            if distanceToTarget > 8 then
+                local timeToReach = math.clamp(distanceToTarget / Config.BatSpeed, 0, 0.3)
+                local predictedPos = optimalStrikePos + (bfTarget.AssemblyLinearVelocity * timeToReach)
+                local chaseDir = (predictedPos - myPos)
+                if chaseDir.Magnitude > 0 then chaseDir = chaseDir.Unit else chaseDir = Vector3.zero end
+                
+                targetVel = chaseDir * Config.BatSpeed
+            else
+                if distToOptimal > 0.5 then
+                    local stickDir = (optimalStrikePos - myPos).Unit
+                    local lungeSpeed = math.min(15, distToOptimal * 5)
+                    targetVel = bfTarget.AssemblyLinearVelocity + (stickDir * lungeSpeed)
+                else
+                    targetVel = bfTarget.AssemblyLinearVelocity
+                end
+            end
+            
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, 0.12)
+
+            if Config.BatFuckerMode == "Auto" then
+                if not MedusaUsedOnTarget and distanceToTarget < 15 then
+                    local medusa = Player.Backpack:FindFirstChild("Medusa's Head") or char:FindFirstChild("Medusa's Head")
+                    if medusa then
+                        medusa.Parent = char
+                        pcall(function() medusa:Activate() end)
+                        MedusaUsedOnTarget = true
+                    end
+                end
+                
+                if distanceToTarget < 6 then
+                    local bat = Player.Backpack:FindFirstChild("Bat") or char:FindFirstChild("Bat")
+                    if bat and tool ~= bat then
+                        bat.Parent = char
+                    end
+                    if tool and tool.Name == "Bat" then
+                        pcall(function() tool:Activate() end)
+                    end
+                end
+            end
+        end
+    end
+
+    -- ==========================================
+    -- ========== PHYSICS CLEANUP LOGIC =========
+    -- ==========================================
+    if not needsLV and hrp:FindFirstChild("S4_LinearVelocity") then
+        hrp.S4_LinearVelocity.MaxForce = 0
+        hrp.S4_LinearVelocity.MaxAxesForce = Vector3.zero
+    end
+    if not needsAO and hrp:FindFirstChild("S4_AlignOrientation") then
+        hrp.S4_AlignOrientation:Destroy()
+    end
+    if not needsLV and not needsAO then
+        clearPhysics(char)
+    end
+    
+    lastCarryState = isCarrying
+end)
+
+-- ==========================================
+-- ========== DEATH/RESPAWN CLEANUP =========
+-- ==========================================
+Player.CharacterAdded:Connect(function(char)
+    char:WaitForChild("Humanoid").Died:Connect(function()
+        States.BatFucker = false
+        States.AimFucker = false
+        States.Fly = false
+        States.AutoDuel = false
+        lastCarryState = false
+        MedusaUsedOnTarget = false
+        currentWaypointIndex = 1
+        
+        if UIRegistry["BatFucker"] then for _, f in pairs(UIRegistry["BatFucker"]) do f(false) end end
+        if UIRegistry["AimFucker"] then for _, f in pairs(UIRegistry["AimFucker"]) do f(false) end end
+        if UIRegistry["Fly"] then for _, f in pairs(UIRegistry["Fly"]) do f(false) end end
+        if UIRegistry["AutoDuel"] then for _, f in pairs(UIRegistry["AutoDuel"]) do f(false) end end
+    end)
+end)
+
+print("S4DUELS V6 MASTER BLUEPRINT INJECTED SUCCESSFULLY.")
