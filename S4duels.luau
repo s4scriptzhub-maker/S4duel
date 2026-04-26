@@ -617,7 +617,72 @@ end)
 -- ==========================================
 -- [placeholder for global __index and __namecall spoofing hooks]
 -- === BAT FUCKER (SMOOTH-STEP PHYSICS) ===
-    if States.BatFucker then
+   -- ==========================================
+-- ========== CORE V3 PHYSICS ENGINE ========
+-- ==========================================
+local function clearPhysics(char)
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChild("Humanoid")
+    if hrp then
+        local att = hrp:FindFirstChild("S4_Attachment")
+        local lv = hrp:FindFirstChild("S4_LinearVelocity")
+        local ao = hrp:FindFirstChild("S4_AlignOrientation")
+        if att then att:Destroy() end
+        if lv then lv:Destroy() end
+        if ao then ao:Destroy() end
+    end
+    if hum and not States.AimFucker then 
+        hum.AutoRotate = true 
+    end
+end
+
+local function getPhysics(hrp)
+    local att = hrp:FindFirstChild("S4_Attachment")
+    if not att then
+        att = Instance.new("Attachment", hrp)
+        att.Name = "S4_Attachment"
+    end
+    local lv = hrp:FindFirstChild("S4_LinearVelocity")
+    if not lv then
+        lv = Instance.new("LinearVelocity", hrp)
+        lv.Name = "S4_LinearVelocity"
+        lv.Attachment0 = att
+        lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
+        lv.MaxForce = 0 
+        lv.RelativeTo = Enum.ActuatorRelativeTo.World
+    end
+    local ao = hrp:FindFirstChild("S4_AlignOrientation")
+    if not ao then
+        ao = Instance.new("AlignOrientation", hrp)
+        ao.Name = "S4_AlignOrientation"
+        ao.Attachment0 = att
+        ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+        
+        -- ANTI-CHEAT SMOOTH ROTATION
+        ao.RigidityEnabled = false 
+        ao.MaxTorque = 100000
+        ao.Responsiveness = 40 
+    end
+    return lv, ao
+end
+
+-- ==========================================
+-- ========== HEARTBEAT DRIVER ==============
+-- ==========================================
+RunService.Heartbeat:Connect(function(deltaTime)
+    local char = Player.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp then return end
+
+    local needsLV = false
+    local needsAO = false
+
+    -- Update Tool Cache for Aim Fucker
+    local tool = char:FindFirstChildOfClass("Tool")
+    CachedHoldingTool = (tool ~= nil) if States.BatFucker then
         hum.AutoRotate = false 
         needsLV = true
         needsAO = true
@@ -668,7 +733,17 @@ end)
                     targetVel = bfTarget.AssemblyLinearVelocity
                 end
             end
-            
+            -- CLEANUP PHYSICS WHEN OFF
+    if not needsLV and hrp:FindFirstChild("S4_LinearVelocity") then
+        hrp.S4_LinearVelocity.MaxForce = 0
+    end
+    if not needsAO and hrp:FindFirstChild("S4_AlignOrientation") then
+        hrp.S4_AlignOrientation:Destroy()
+    end
+    if not needsLV and not needsAO then
+        clearPhysics(char)
+    end
+end) -- Closes the Heartbeat Loop
             -- Strict Delta-V Lerping (Alpha 0.12 for maximum smoothness)
             lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, 0.12)
         end
