@@ -1,5 +1,6 @@
--- [[ S4DUELS V6.3: EVIL HUB AESTHETICS ]] --
--- [[ MOBILE TAP SPOOFER + ZERO LAG + V3 PHYSICS ]] --
+-- S4DUELS V6: ELITE PLASMA GLASS FRAMEWORK
+-- WYNFUSCATE COMPATIBLE | NO MULTILINE STRINGS
+-- PART 1: CORE ENGINE & UI INITIALIZATION
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,9 +8,6 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
-local TextChatService = game:GetService("TextChatService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -20,15 +18,41 @@ while not Player do
 end
 
 -- ==========================================
--- ========== GLOBAL CONFIGURATION ==========
+-- ========== CONFIG & SAVE SYSTEM ==========
 -- ==========================================
+local ConfigFile = "S4V6_EliteConfig.json"
+
 local Config = {
     BatSpeed = 56,
-    FlySpeed = 56,
+    FlySpeed = 110,
     FlyCarrySpeed = 29,
     WalkSpeed = 56,
-    CarrySpeed = 29
+    CarrySpeed = 29,
+    AutoDuelSpeed = 56,
+    AutoDuelCarrySpeed = 29,
+    SpeedBypassEnabled = false,
+    BatFuckerMode = "Standard", -- "Standard" or "Auto"
+    AutoPlayLane = "Right" -- "Right" or "Left"
 }
+
+local function LoadSettings()
+    if isfile and isfile(ConfigFile) then
+        local success, data = pcall(function() return HttpService:JSONDecode(readfile(ConfigFile)) end)
+        if success and data then
+            for k, v in pairs(data) do
+                if Config[k] ~= nil then Config[k] = v end
+            end
+        end
+    end
+end
+
+local function SaveSettings()
+    if writefile then
+        pcall(function() writefile(ConfigFile, HttpService:JSONEncode(Config)) end)
+    end
+end
+
+LoadSettings()
 
 local States = {
     BatFucker = false,
@@ -36,91 +60,48 @@ local States = {
     Fly = false,
     S4Booster = false,
     InstantSteal = false,
+    AutoDuel = false,
     ESP = false,
-    InfJump = false,
-    Unwalk = false,
     AntiRagdoll = false,
     DuelFuckerMode = false
 }
 
--- Premium Sharp Purplish Colors (Evil Hub Style)
+-- Target Caches
+local CurrentAimTarget = nil 
+local CachedHoldingTool = false 
+local MedusaUsedOnTarget = false
+
+-- ==========================================
+-- ========== THEME CONFIGURATION ===========
+-- ==========================================
 local Theme = {
-    Background = Color3.fromRGB(25, 10, 40),      
-    PanelBg = Color3.fromRGB(45, 20, 65),         
-    PurpleNeon = Color3.fromRGB(210, 50, 255),    
-    BlueNeon = Color3.fromRGB(0, 240, 255),       
+    Background = Color3.fromRGB(15, 10, 25),      
+    PanelBg = Color3.fromRGB(35, 20, 55),         
+    BorderNeon = Color3.fromRGB(200, 50, 255),    
+    AccentFill = Color3.fromRGB(210, 50, 255),    
     TextWhite = Color3.fromRGB(245, 245, 250),
     TextDim = Color3.fromRGB(170, 150, 190),
     Danger = Color3.fromRGB(255, 50, 70),
     Success = Color3.fromRGB(40, 255, 120),
-    InactiveStroke = Color3.fromRGB(70, 40, 90)
+    InactiveBorder = Color3.fromRGB(70, 40, 90),
+    BlueNeon = Color3.fromRGB(0, 240, 255),
+    GlassTransparency = 0.55,
+    PanelTransparency = 0.4
 }
 
 local TweenFast = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local guiLocked = false
-local UIRegistry = {}
-local STROKE_THICKNESS = 1.2
-
--- ==========================================
--- ========== UNIVERSAL SILENT AIM ==========
--- ==========================================
-local CurrentAimTarget = nil 
-local CachedHoldingTool = false 
-
--- 1. Index Hook (Covers PC Mouse)
-local OriginalIndex = nil
-OriginalIndex = hookmetamethod(game, "__index", function(self, key)
-    if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
-        if tostring(self) == "Mouse" then
-            if key == "Hit" then 
-                return CurrentAimTarget.CFrame 
-            end
-            if key == "Target" then 
-                return CurrentAimTarget 
-            end
-            if key == "UnitRay" then 
-                local camPos = Camera.CFrame.Position
-                return Ray.new(camPos, (CurrentAimTarget.Position - camPos).Unit) 
-            end
-        end
-    end
-    return OriginalIndex(self, key)
-end)
-
--- 2. Namecall Hook (Covers Mobile Taps / Camera Projections)
-local OriginalNamecall = nil
-OriginalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-
-    if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
-        -- Spoof Mobile ScreenPoint/ViewportPoint logic
-        if self == Camera or tostring(self) == "Camera" then
-            if method == "ScreenPointToRay" or method == "ViewportPointToRay" then
-                local camPos = Camera.CFrame.Position
-                local targetPos = CurrentAimTarget.Position
-                local fakeRay = Ray.new(camPos, (targetPos - camPos).Unit)
-                return fakeRay
-            end
-        end
-    end
-
-    return OriginalNamecall(self, ...)
-end)
+local UIRegistry = {} 
+local STROKE_THICKNESS = 1.8
 
 -- ==========================================
 -- ========== GUI CLEANUP & SETUP ===========
 -- ==========================================
-local GUI_NAME = "S4_V6_EVILHUB_HUD"
-
+local GUI_NAME = "S4_V6_ELITE_HUD"
 pcall(function()
-    for _, v in pairs(CoreGui:GetChildren()) do
-        if v.Name == GUI_NAME then v:Destroy() end
-    end
+    for _, v in pairs(CoreGui:GetChildren()) do if v.Name == GUI_NAME then v:Destroy() end end
     if Player:FindFirstChild("PlayerGui") then
-        for _, v in pairs(Player.PlayerGui:GetChildren()) do
-            if v.Name == GUI_NAME then v:Destroy() end
-        end
+        for _, v in pairs(Player.PlayerGui:GetChildren()) do if v.Name == GUI_NAME then v:Destroy() end end
     end
 end)
 
@@ -131,45 +112,55 @@ pcall(function() ScreenGui.Parent = gethui and gethui() or CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = Player:WaitForChild("PlayerGui") end
 
 -- ==========================================
--- ========== LIVE SHINY ENGINE =============
+-- ========== PLASMA BORDER ENGINE ==========
 -- ==========================================
-local function applyShinyGradient(parent, color1)
-    local gradient = Instance.new("UIGradient", parent)
+local function ApplyPlasmaBorder(parent, isFunctional, customColor)
+    local stroke = Instance.new("UIStroke", parent)
+    stroke.Thickness = STROKE_THICKNESS
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     
-    local function updateColor(color)
+    local gradient = Instance.new("UIGradient", stroke)
+    
+    local function updateColorSequence(baseColor)
         gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, color),
-            ColorSequenceKeypoint.new(0.4, color),
+            ColorSequenceKeypoint.new(0, baseColor),
+            ColorSequenceKeypoint.new(0.4, baseColor),
             ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)), 
-            ColorSequenceKeypoint.new(0.6, color),
-            ColorSequenceKeypoint.new(1, color)
+            ColorSequenceKeypoint.new(0.6, baseColor),
+            ColorSequenceKeypoint.new(1, baseColor),
         })
     end
-    updateColor(color1)
+    
+    local initialColor = customColor or (isFunctional and Theme.InactiveBorder or Theme.BorderNeon)
+    updateColorSequence(initialColor)
     
     task.spawn(function()
-        local rot = 0
+        local flowOffset = 0
         RunService.RenderStepped:Connect(function(dt)
-            rot = (rot + (dt * 150)) % 360 
-            gradient.Rotation = rot
+            flowOffset = (flowOffset + (dt * 150)) % 360 
+            gradient.Rotation = flowOffset
         end)
     end)
-    return gradient, updateColor
+    
+    return gradient, updateColorSequence
 end
 
 -- ==========================================
--- ====== FLAWLESS MULTI-TOUCH ENGINE =======
+-- ====== SMART DRAG VS CLICK ENGINE ========
 -- ==========================================
-local function MakeDraggable(frame, handle)
+local function MakeFloatingDraggable(frame, button, onClick)
     local dragging = false
+    local hasMoved = false
     local dragInput = nil
-    local dragStart = nil
-    local startPos = nil
+    local dragStart, startPos
 
-    handle.InputBegan:Connect(function(input)
+    button.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if guiLocked and frame.Name ~= "TopHeader" and frame.Name ~= "MainWindow" then return end 
             if dragging then return end 
+            
             dragging = true
+            hasMoved = false
             dragInput = input
             dragStart = input.Position
             startPos = frame.Position
@@ -178,6 +169,7 @@ local function MakeDraggable(frame, handle)
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
                     dragInput = nil
+                    if not hasMoved and onClick then onClick() end
                 end
             end)
         end
@@ -186,7 +178,10 @@ local function MakeDraggable(frame, handle)
     UserInputService.InputChanged:Connect(function(input)
         if dragging and input == dragInput then
             local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            if delta.Magnitude > 5 then
+                hasMoved = true
+                frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
         end
     end)
 end
@@ -195,16 +190,15 @@ end
 -- ========== PREMIUM HEADER ================
 -- ==========================================
 local TopHeader = Instance.new("Frame", ScreenGui)
+TopHeader.Name = "TopHeader"
 TopHeader.Size = UDim2.new(0, 200, 0, 60)
 TopHeader.Position = UDim2.new(0.5, -100, 0, 20)
 TopHeader.BackgroundColor3 = Theme.Background
-TopHeader.BackgroundTransparency = 0.55
+TopHeader.BackgroundTransparency = Theme.GlassTransparency
 TopHeader.BorderSizePixel = 0
 Instance.new("UICorner", TopHeader).CornerRadius = UDim.new(0, 4)
 
-local HeaderStroke = Instance.new("UIStroke", TopHeader)
-HeaderStroke.Thickness = STROKE_THICKNESS
-applyShinyGradient(HeaderStroke, Theme.PurpleNeon)
+ApplyPlasmaBorder(TopHeader, false)
 
 local HeaderTitle = Instance.new("TextLabel", TopHeader)
 HeaderTitle.Size = UDim2.new(1, 0, 0, 25)
@@ -228,44 +222,39 @@ local ToggleHubBtn = Instance.new("TextButton", TopHeader)
 ToggleHubBtn.Size = UDim2.new(0, 100, 0, 26)
 ToggleHubBtn.Position = UDim2.new(0.5, -50, 1, 8) 
 ToggleHubBtn.BackgroundColor3 = Theme.PanelBg
-ToggleHubBtn.BackgroundTransparency = 0.4
+ToggleHubBtn.BackgroundTransparency = Theme.PanelTransparency
 ToggleHubBtn.Text = "S4HUB"
-ToggleHubBtn.TextColor3 = Theme.PurpleNeon
+ToggleHubBtn.TextColor3 = Theme.AccentFill
 ToggleHubBtn.Font = Enum.Font.GothamBlack
 ToggleHubBtn.TextSize = 13
 Instance.new("UICorner", ToggleHubBtn).CornerRadius = UDim.new(0, 4)
-local ToggleStroke = Instance.new("UIStroke", ToggleHubBtn)
-ToggleStroke.Thickness = STROKE_THICKNESS
-applyShinyGradient(ToggleStroke, Theme.PurpleNeon)
+ApplyPlasmaBorder(ToggleHubBtn, false)
 
-MakeDraggable(TopHeader, TopHeader)
+MakeFloatingDraggable(TopHeader, TopHeader)
 
 -- ==========================================
 -- ========== MAIN HUB WINDOW ===============
 -- ==========================================
 local MainWindow = Instance.new("Frame", ScreenGui)
+MainWindow.Name = "MainWindow"
 MainWindow.Size = UDim2.new(0, 380, 0, 320)
 MainWindow.Position = UDim2.new(0.5, -190, 0.5, -160)
 MainWindow.BackgroundColor3 = Theme.Background
-MainWindow.BackgroundTransparency = 0.55
+MainWindow.BackgroundTransparency = Theme.GlassTransparency
 MainWindow.BorderSizePixel = 0
-MainWindow.Visible = false
+MainWindow.Visible = false 
 Instance.new("UICorner", MainWindow).CornerRadius = UDim.new(0, 4)
 
-local MainStroke = Instance.new("UIStroke", MainWindow)
-MainStroke.Thickness = STROKE_THICKNESS
-applyShinyGradient(MainStroke, Theme.PurpleNeon)
+ApplyPlasmaBorder(MainWindow, false)
 
 ToggleHubBtn.Activated:Connect(function()
-    if not States.DuelFuckerMode then 
-        MainWindow.Visible = not MainWindow.Visible 
-    end
+    if not States.DuelFuckerMode then MainWindow.Visible = not MainWindow.Visible end
 end)
 
 local TitleBar = Instance.new("Frame", MainWindow)
 TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Theme.PanelBg
-TitleBar.BackgroundTransparency = 0.4
+TitleBar.BackgroundTransparency = Theme.PanelTransparency
 TitleBar.BorderSizePixel = 0
 Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 4)
 
@@ -273,7 +262,7 @@ local TitleText = Instance.new("TextLabel", TitleBar)
 TitleText.Size = UDim2.new(1, -20, 1, 0)
 TitleText.Position = UDim2.new(0, 15, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "S4HUB ELITE"
+TitleText.Text = "S4HUB V6: ELITE"
 TitleText.TextColor3 = Theme.TextWhite
 TitleText.Font = Enum.Font.GothamBlack
 TitleText.TextSize = 14
@@ -289,8 +278,7 @@ CloseButton.Font = Enum.Font.GothamBold
 CloseButton.TextSize = 18
 CloseButton.Activated:Connect(function() MainWindow.Visible = false end)
 
-MakeDraggable(MainWindow, TitleBar)
-
+MakeFloatingDraggable(MainWindow, TitleBar)
 -- ==========================================
 -- ========== TOP TABS & CONTENT ============
 -- ==========================================
@@ -313,26 +301,28 @@ local function CreateTab(tabName, xPositionScale)
     local TabBtn = Instance.new("TextButton", TabContainer)
     TabBtn.Size = UDim2.new(0.5, 0, 1, 0)
     TabBtn.Position = UDim2.new(xPositionScale, 0, 0, 0)
-    TabBtn.BackgroundTransparency = 1
+    TabBtn.BackgroundColor3 = Theme.AccentFill
+    TabBtn.BackgroundTransparency = 1 
     TabBtn.Text = tabName
     TabBtn.TextColor3 = Theme.TextDim
     TabBtn.Font = Enum.Font.GothamBold
     TabBtn.TextSize = 13
+    Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 4)
     
     local Indicator = Instance.new("Frame", TabBtn)
     Indicator.Size = UDim2.new(0.6, 0, 0, 3)
     Indicator.Position = UDim2.new(0.2, 0, 1, -3)
-    Indicator.BackgroundColor3 = Theme.PurpleNeon
-    Indicator.BackgroundTransparency = 1
+    Indicator.BackgroundColor3 = Theme.AccentFill
+    Indicator.BackgroundTransparency = 1 
     Instance.new("UICorner", Indicator).CornerRadius = UDim.new(1, 0)
 
     local TabContent = Instance.new("ScrollingFrame", ContentArea)
     TabContent.Size = UDim2.new(1, 0, 1, 0)
     TabContent.BackgroundTransparency = 1
     TabContent.ScrollBarThickness = 2
-    TabContent.ScrollBarImageColor3 = Theme.PurpleNeon
+    TabContent.ScrollBarImageColor3 = Theme.AccentFill
     TabContent.Visible = false
-    TabContent.CanvasSize = UDim2.new(0, 0, 1.5, 0)
+    TabContent.CanvasSize = UDim2.new(0, 0, 2.5, 0) 
     
     local Layout = Instance.new("UIGridLayout", TabContent)
     Layout.CellSize = UDim2.new(0.48, 0, 0, 42)
@@ -343,11 +333,11 @@ local function CreateTab(tabName, xPositionScale)
     TabBtn.Activated:Connect(function()
         for _, tab in pairs(Tabs) do
             tab.Content.Visible = false
-            TweenService:Create(tab.Btn, TweenFast, {TextColor3 = Theme.TextDim}):Play()
+            TweenService:Create(tab.Btn, TweenFast, {BackgroundTransparency = 1, TextColor3 = Theme.TextDim}):Play()
             TweenService:Create(tab.Indicator, TweenFast, {BackgroundTransparency = 1}):Play()
         end
         TabContent.Visible = true
-        TweenService:Create(TabBtn, TweenFast, {TextColor3 = Theme.TextWhite}):Play()
+        TweenService:Create(TabBtn, TweenFast, {BackgroundTransparency = 0.3, TextColor3 = Theme.TextWhite}):Play()
         TweenService:Create(Indicator, TweenFast, {BackgroundTransparency = 0}):Play()
     end)
 
@@ -358,73 +348,205 @@ local TabS4Duels = CreateTab("S4DUELS", 0)
 local TabServer = CreateTab("SERVER", 0.5)
 
 Tabs[1].Btn.TextColor3 = Theme.TextWhite
+Tabs[1].Btn.BackgroundTransparency = 0.3
 Tabs[1].Indicator.BackgroundTransparency = 0
 Tabs[1].Content.Visible = true
+
+-- ==========================================
+-- ========== SPEED CUSTOMIZER MENUS ========
+-- ==========================================
+local function createSpeedMenu(titleText, height)
+    local menu = Instance.new("Frame", ScreenGui)
+    menu.Size = UDim2.new(0, 260, 0, height)
+    menu.Position = UDim2.new(0.5, -130, 0.5, -(height/2))
+    menu.BackgroundColor3 = Theme.Background
+    menu.BackgroundTransparency = 0.4 
+    menu.Visible = false
+    menu.ZIndex = 50
+    Instance.new("UICorner", menu).CornerRadius = UDim.new(0, 6)
+    
+    local mStroke = Instance.new("UIStroke", menu)
+    mStroke.Thickness = STROKE_THICKNESS
+    ApplyPlasmaBorder(menu, false)
+
+    local title = Instance.new("TextLabel", menu)
+    title.Size = UDim2.new(1, 0, 0, 35)
+    title.Position = UDim2.new(0, 15, 0, 5)
+    title.Text = titleText
+    title.TextColor3 = Theme.PurpleNeon
+    title.Font = Enum.Font.GothamBlack
+    title.TextSize = 14
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.BackgroundTransparency = 1
+    title.ZIndex = 51
+    
+    local closeBtn = Instance.new("TextButton", menu)
+    closeBtn.Size = UDim2.new(0, 35, 0, 35)
+    closeBtn.Position = UDim2.new(1, -40, 0, 5)
+    closeBtn.Text = "✕"
+    closeBtn.TextColor3 = Theme.Danger
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 18
+    closeBtn.BackgroundTransparency = 1
+    closeBtn.ZIndex = 51
+    closeBtn.Activated:Connect(function() menu.Visible = false end)
+    
+    local menuDragBtn = Instance.new("TextButton", menu)
+    menuDragBtn.Size = UDim2.new(1, -40, 0, 35)
+    menuDragBtn.BackgroundTransparency = 1
+    menuDragBtn.Text = ""
+    menuDragBtn.ZIndex = 51
+    MakeFloatingDraggable(menu, menuDragBtn)
+    
+    -- Universal Save Button
+    local saveBtn = Instance.new("TextButton", menu)
+    saveBtn.Size = UDim2.new(0.8, 0, 0, 30)
+    saveBtn.Position = UDim2.new(0.1, 0, 1, -40)
+    saveBtn.BackgroundColor3 = Theme.PanelBg
+    saveBtn.TextColor3 = Theme.TextWhite
+    saveBtn.Font = Enum.Font.GothamBold
+    saveBtn.TextSize = 12
+    saveBtn.Text = "Save Config"
+    saveBtn.ZIndex = 51
+    Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0, 4)
+    ApplyPlasmaBorder(saveBtn, false)
+    
+    saveBtn.Activated:Connect(function()
+        SaveSettings()
+        saveBtn.Text = "SAVED!"
+        saveBtn.TextColor3 = Theme.Success
+        task.wait(1)
+        saveBtn.Text = "Save Config"
+        saveBtn.TextColor3 = Theme.TextWhite
+    end)
+    
+    return menu
+end
+
+local function addSpeedSlider(menu, yPos, labelStr, varKey, minVal, maxVal)
+    local label = Instance.new("TextLabel", menu)
+    label.Size = UDim2.new(1, -30, 0, 20)
+    label.Position = UDim2.new(0, 15, 0, yPos)
+    label.BackgroundTransparency = 1
+    label.Text = labelStr .. ": " .. Config[varKey]
+    label.TextColor3 = Theme.TextWhite
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 51
+
+    local track = Instance.new("TextButton", menu)
+    track.Size = UDim2.new(1, -30, 0, 12) 
+    track.Position = UDim2.new(0, 15, 0, yPos + 24)
+    track.BackgroundColor3 = Color3.fromRGB(20, 5, 30)
+    track.Text = ""
+    track.ZIndex = 51
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    local initRel = (Config[varKey] - minVal) / (maxVal - minVal)
+    
+    local fill = Instance.new("Frame", track)
+    fill.Size = UDim2.new(initRel, 0, 1, 0)
+    fill.BackgroundColor3 = Theme.AccentFill
+    fill.ZIndex = 52
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local dragging = false
+    local dragInput = nil
+    
+    local function update(input)
+        local rel = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        local val = math.floor(minVal + rel * (maxVal - minVal))
+        Config[varKey] = val
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        label.Text = labelStr .. ": " .. val
+    end
+    
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true 
+            dragInput = input 
+            update(input)
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false dragInput = nil end
+            end)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then update(input) end
+    end)
+end
+
+local function addToggleSetting(menu, yPos, labelStr, varKey)
+    local label = Instance.new("TextLabel", menu)
+    label.Size = UDim2.new(1, -60, 0, 20)
+    label.Position = UDim2.new(0, 15, 0, yPos)
+    label.BackgroundTransparency = 1
+    label.Text = labelStr
+    label.TextColor3 = Theme.TextWhite
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 51
+    
+    local toggleBtn = Instance.new("TextButton", menu)
+    toggleBtn.Size = UDim2.new(0, 40, 0, 20)
+    toggleBtn.Position = UDim2.new(1, -55, 0, yPos)
+    toggleBtn.BackgroundColor3 = Config[varKey] and Theme.AccentFill or Theme.Background
+    toggleBtn.Text = Config[varKey] and "ON" or "OFF"
+    toggleBtn.TextColor3 = Theme.TextWhite
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.TextSize = 10
+    toggleBtn.ZIndex = 51
+    Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 4)
+    ApplyPlasmaBorder(toggleBtn, false)
+    
+    toggleBtn.Activated:Connect(function()
+        Config[varKey] = not Config[varKey]
+        toggleBtn.BackgroundColor3 = Config[varKey] and Theme.AccentFill or Theme.Background
+        toggleBtn.Text = Config[varKey] and "ON" or "OFF"
+    end)
+end
+
+local MenuBat = createSpeedMenu("BAT FUCKER SPEEDS", 130)
+addSpeedSlider(MenuBat, 45, "Tracking Speed", "BatSpeed", 20, 125)
+
+local MenuFly = createSpeedMenu("FLY SPEEDS (OP)", 220)
+addSpeedSlider(MenuFly, 45, "Fly Speed", "FlySpeed", 20, 125)
+addSpeedSlider(MenuFly, 105, "Fly Carry Speed", "FlyCarrySpeed", 0, 50) 
+addToggleSetting(MenuFly, 155, "Speed Bypass (Invis Cloak)", "SpeedBypassEnabled")
+
+local MenuAutoDuel = createSpeedMenu("AUTO DUEL SPEEDS", 190)
+addSpeedSlider(MenuAutoDuel, 45, "Attack Speed", "AutoDuelSpeed", 20, 125)
+addSpeedSlider(MenuAutoDuel, 105, "Return Speed", "AutoDuelCarrySpeed", 0, 50)
+
+local MenuS4 = createSpeedMenu("S4BOOSTER SPEEDS", 190)
+addSpeedSlider(MenuS4, 45, "Walk Speed", "WalkSpeed", 20, 125)
+addSpeedSlider(MenuS4, 105, "Carry Speed", "CarrySpeed", 0, 50)
 
 -- ==========================================
 -- ======== DUELFUCKER HUD (FLOATING) =======
 -- ==========================================
 local DuelFuckerHUD = Instance.new("Frame", ScreenGui)
+DuelFuckerHUD.Name = "DuelFuckerHUD"
 DuelFuckerHUD.Size = UDim2.new(1, 0, 1, 0)
 DuelFuckerHUD.BackgroundTransparency = 1
 DuelFuckerHUD.Visible = false
 
-local function MakeFloatingDraggable(frame, button, onClick)
-    local dragging = false
-    local hasMoved = false
-    local dragInput = nil
-    local dragStart, startPos
-
-    button.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            if guiLocked then return end
-            if dragging then return end 
-            
-            dragging = true
-            hasMoved = false
-            dragInput = input
-            dragStart = input.Position
-            startPos = frame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                    dragInput = nil
-                    if not hasMoved and onClick then 
-                        onClick() 
-                    end
-                end
-            end)
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input == dragInput then
-            local delta = input.Position - dragStart
-            if delta.Magnitude > 5 then
-                hasMoved = true
-                if not guiLocked then
-                    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-                end
-            end
-        end
-    end)
-end
-
-local function CreateFloatingButton(text, stateKey, defaultPos, isBlueLine, canDrag)
+local function CreateFloatingButton(text, stateKey, defaultPos, isBlueLine)
     local frame = Instance.new("Frame", DuelFuckerHUD)
     frame.Size = UDim2.new(0, 140, 0, 42)
     frame.Position = defaultPos
     frame.BackgroundColor3 = Theme.Background
-    frame.BackgroundTransparency = 0.55
+    frame.BackgroundTransparency = Theme.GlassTransparency
     frame.BorderSizePixel = 0
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
     
-    local stroke = Instance.new("UIStroke", frame)
-    stroke.Thickness = STROKE_THICKNESS
-    local baseColor = isBlueLine and Theme.BlueNeon or Theme.InactiveStroke
-    local activeColor = isBlueLine and Theme.BlueNeon or Theme.PurpleNeon
-    local _, updateShine = applyShinyGradient(stroke, baseColor)
+    local _, updateShine = ApplyPlasmaBorder(frame, true, isBlueLine and Theme.BlueNeon or Theme.InactiveBorder)
+
+    if isBlueLine and stateKey ~= "LockGUI" then
+        updateShine(Theme.BlueNeon) 
+    end
 
     local btn = Instance.new("TextButton", frame)
     btn.Size = UDim2.new(1, 0, 1, 0)
@@ -449,159 +571,177 @@ local function CreateFloatingButton(text, stateKey, defaultPos, isBlueLine, canD
                 for _, f in pairs(UIRegistry["DuelFuckerMode"]) do f(false) end
             end
             return
+        elseif stateKey == "Drop" then
+            if Player:GetAttribute("Stealing") then
+                local char = Player.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    task.spawn(function()
+                        local vel = root.AssemblyLinearVelocity
+                        root.AssemblyLinearVelocity = vel * 10000 + Vector3.new(0, 10000, 0)
+                        RunService.RenderStepped:Wait()
+                        if root and root.Parent then root.AssemblyLinearVelocity = vel end
+                        RunService.Stepped:Wait()
+                        if root and root.Parent then root.AssemblyLinearVelocity = vel + Vector3.new(0, 0.1, 0) end
+                    end)
+                end
+            end
+            return
         end
 
         States[stateKey] = not States[stateKey]
+        
+        -- Override if disabling AutoPlay mid-run
+        if stateKey == "AutoDuel" and not States[stateKey] then
+            local char = Player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then root.AssemblyLinearVelocity = Vector3.zero end
+        end
 
         if UIRegistry[stateKey] then
             for _, func in pairs(UIRegistry[stateKey]) do func(States[stateKey]) end
         end
     end
 
-    if canDrag == false then
-        btn.Activated:Connect(HandleClick)
-    else
-        MakeFloatingDraggable(frame, btn, HandleClick)
-    end
+    MakeFloatingDraggable(frame, btn, HandleClick)
 
-    if stateKey ~= "LockGUI" and stateKey ~= "ReturnHub" then
+    if stateKey ~= "LockGUI" and stateKey ~= "ReturnHub" and stateKey ~= "Drop" then
         if not UIRegistry[stateKey] then UIRegistry[stateKey] = {} end
         table.insert(UIRegistry[stateKey], function(state)
             if state then
                 TweenService:Create(btn, TweenFast, {TextColor3 = Theme.Success}):Play()
-                TweenService:Create(frame, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.2}):Play()
-                updateShine(activeColor)
+                TweenService:Create(frame, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.3}):Play()
+                updateShine(Theme.AccentFill)
             else
                 TweenService:Create(btn, TweenFast, {TextColor3 = Theme.TextWhite}):Play()
-                TweenService:Create(frame, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = 0.55}):Play()
-                updateShine(Theme.InactiveStroke)
+                TweenService:Create(frame, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = Theme.GlassTransparency}):Play()
+                updateShine(Theme.InactiveBorder)
             end
         end)
     end
 end
 
-CreateFloatingButton("S4HUB", "ReturnHub", UDim2.new(0, 15, 0, 15), true, true)
-CreateFloatingButton("LOCK GUI", "LockGUI", UDim2.new(0, 15, 0, 65), true, false)
-
-CreateFloatingButton("Bat Fucker", "BatFucker", UDim2.new(0.3, 0, 0.1, 0), false, true)
-CreateFloatingButton("Fly", "Fly", UDim2.new(0.7, 0, 0.1, 0), false, true)
-CreateFloatingButton("Instant Steal", "InstantSteal", UDim2.new(0.3, 0, 0.8, 0), false, true)
-
-CreateFloatingButton("AIM FUCKER", "AimFucker", UDim2.new(0.5, 0, 0.8, 0), false, true)
-CreateFloatingButton("Unwalk", "Unwalk", UDim2.new(0.7, 0, 0.8, 0), false, true)
-
--- ==========================================
--- ========== SPEED CUSTOMIZER MENUS ========
--- ==========================================
-local function createSpeedMenu(titleText)
-    local menu = Instance.new("Frame", MainWindow)
-    menu.Size = UDim2.new(0, 240, 0, 180)
-    menu.Position = UDim2.new(0.5, -120, 0.5, -90)
-    menu.BackgroundColor3 = Theme.Background
-    menu.BackgroundTransparency = 0.1
-    menu.Visible = false
-    menu.ZIndex = 50
-    Instance.new("UICorner", menu).CornerRadius = UDim.new(0, 4)
+-- Create Dropdown Button (Half & Half)
+local function CreateDropdownFloatingButton(mainText, stateKeyMain, configKey, opt1, opt2, defaultPos)
+    local container = Instance.new("Frame", DuelFuckerHUD)
+    container.Size = UDim2.new(0, 140, 0, 42)
+    container.Position = defaultPos
+    container.BackgroundTransparency = 1
     
-    local mStroke = Instance.new("UIStroke", menu)
-    mStroke.Thickness = STROKE_THICKNESS
-    applyShinyGradient(mStroke, Theme.PurpleNeon)
-
-    local title = Instance.new("TextLabel", menu)
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Position = UDim2.new(0, 15, 0, 5)
-    title.Text = titleText
-    title.TextColor3 = Theme.TextWhite
-    title.Font = Enum.Font.GothamBlack
-    title.TextSize = 13
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.BackgroundTransparency = 1
-    title.ZIndex = 51
+    local mainFrame = Instance.new("Frame", container)
+    mainFrame.Size = UDim2.new(1, 0, 0, 42)
+    mainFrame.BackgroundColor3 = Theme.Background
+    mainFrame.BackgroundTransparency = Theme.GlassTransparency
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 6)
     
-    local closeBtn = Instance.new("TextButton", menu)
-    closeBtn.Size = UDim2.new(0, 30, 0, 30)
-    closeBtn.Position = UDim2.new(1, -35, 0, 5)
-    closeBtn.Text = "✕"
-    closeBtn.TextColor3 = Theme.Danger
-    closeBtn.Font = Enum.Font.GothamBold
-    closeBtn.TextSize = 16
-    closeBtn.BackgroundTransparency = 1
-    closeBtn.ZIndex = 51
-    closeBtn.Activated:Connect(function() menu.Visible = false end)
+    local _, updateShine = ApplyPlasmaBorder(mainFrame, true, Theme.InactiveBorder)
     
-    return menu
-end
-
-local function addSpeedSlider(menu, yPos, labelStr, varKey, maxVal)
-    local label = Instance.new("TextLabel", menu)
-    label.Size = UDim2.new(1, -30, 0, 20)
-    label.Position = UDim2.new(0, 15, 0, yPos)
-    label.BackgroundTransparency = 1
-    label.Text = labelStr .. ": " .. Config[varKey]
-    label.TextColor3 = Theme.TextWhite
-    label.Font = Enum.Font.GothamSemibold
-    label.TextSize = 12
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 51
-
-    local track = Instance.new("TextButton", menu)
-    track.Size = UDim2.new(1, -30, 0, 6)
-    track.Position = UDim2.new(0, 15, 0, yPos + 22)
-    track.BackgroundColor3 = Theme.PanelBg
-    track.Text = ""
-    track.ZIndex = 51
-    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
-
-    local fill = Instance.new("Frame", track)
-    fill.Size = UDim2.new(Config[varKey] / maxVal, 0, 1, 0)
-    fill.BackgroundColor3 = Theme.PurpleNeon
-    fill.ZIndex = 52
-    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-
-    local dragging = false
-    local dragInput = nil
+    local btnMain = Instance.new("TextButton", mainFrame)
+    btnMain.Size = UDim2.new(1, -30, 1, 0)
+    btnMain.BackgroundTransparency = 1
+    btnMain.Text = mainText
+    btnMain.TextColor3 = Theme.TextWhite
+    btnMain.Font = Enum.Font.GothamBold
+    btnMain.TextSize = 12
     
-    local function update(input)
-        local rel = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
-        local val = math.floor(rel * maxVal)
-        Config[varKey] = val
-        fill.Size = UDim2.new(rel, 0, 1, 0)
-        label.Text = labelStr .. ": " .. val
+    local arrowBtn = Instance.new("TextButton", mainFrame)
+    arrowBtn.Size = UDim2.new(0, 30, 1, 0)
+    arrowBtn.Position = UDim2.new(1, -30, 0, 0)
+    arrowBtn.BackgroundTransparency = 1
+    arrowBtn.Text = "▼"
+    arrowBtn.TextColor3 = Theme.TextDim
+    arrowBtn.TextSize = 14
+    
+    local subFrame = Instance.new("Frame", container)
+    subFrame.Size = UDim2.new(1, 0, 0, 36)
+    subFrame.Position = UDim2.new(0, 0, 0, 46)
+    subFrame.BackgroundColor3 = Theme.PanelBg
+    subFrame.BackgroundTransparency = Theme.GlassTransparency
+    subFrame.Visible = false
+    Instance.new("UICorner", subFrame).CornerRadius = UDim.new(0, 6)
+    ApplyPlasmaBorder(subFrame, false)
+    
+    local btnOpt1 = Instance.new("TextButton", subFrame)
+    btnOpt1.Size = UDim2.new(0.5, 0, 1, 0)
+    btnOpt1.BackgroundTransparency = 1
+    btnOpt1.Text = opt1
+    btnOpt1.TextColor3 = Config[configKey] == opt1 and Theme.AccentFill or Theme.TextWhite
+    btnOpt1.Font = Enum.Font.GothamBold
+    btnOpt1.TextSize = 11
+    
+    local btnOpt2 = Instance.new("TextButton", subFrame)
+    btnOpt2.Size = UDim2.new(0.5, 0, 1, 0)
+    btnOpt2.Position = UDim2.new(0.5, 0, 0, 0)
+    btnOpt2.BackgroundTransparency = 1
+    btnOpt2.Text = opt2
+    btnOpt2.TextColor3 = Config[configKey] == opt2 and Theme.AccentFill or Theme.TextWhite
+    btnOpt2.Font = Enum.Font.GothamBold
+    btnOpt2.TextSize = 11
+
+    local divider = Instance.new("Frame", subFrame)
+    divider.Size = UDim2.new(0, 2, 0.6, 0)
+    divider.Position = UDim2.new(0.5, -1, 0.2, 0)
+    divider.BackgroundColor3 = Theme.InactiveBorder
+    divider.BorderSizePixel = 0
+
+    btnOpt1.Activated:Connect(function()
+        Config[configKey] = opt1
+        btnOpt1.TextColor3 = Theme.AccentFill
+        btnOpt2.TextColor3 = Theme.TextWhite
+    end)
+    btnOpt2.Activated:Connect(function()
+        Config[configKey] = opt2
+        btnOpt2.TextColor3 = Theme.AccentFill
+        btnOpt1.TextColor3 = Theme.TextWhite
+    end)
+    
+    arrowBtn.Activated:Connect(function()
+        subFrame.Visible = not subFrame.Visible
+        arrowBtn.Text = subFrame.Visible and "▲" or "▼"
+    end)
+    
+    local function HandleMainClick()
+        States[stateKeyMain] = not States[stateKeyMain]
+        
+        if stateKeyMain == "AutoDuel" and not States[stateKeyMain] then
+            local char = Player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then root.AssemblyLinearVelocity = Vector3.zero end
+        end
+        
+        if UIRegistry[stateKeyMain] then
+            for _, func in pairs(UIRegistry[stateKeyMain]) do func(States[stateKeyMain]) end
+        end
     end
-    
-    track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            if dragging then return end
-            dragging = true
-            dragInput = input
-            update(input)
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                    dragInput = nil
-                end
-            end)
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input == dragInput then
-            update(input)
+
+    MakeFloatingDraggable(container, btnMain, HandleMainClick)
+
+    if not UIRegistry[stateKeyMain] then UIRegistry[stateKeyMain] = {} end
+    table.insert(UIRegistry[stateKeyMain], function(state)
+        if state then
+            TweenService:Create(btnMain, TweenFast, {TextColor3 = Theme.Success}):Play()
+            TweenService:Create(mainFrame, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.3}):Play()
+            updateShine(Theme.AccentFill)
+        else
+            TweenService:Create(btnMain, TweenFast, {TextColor3 = Theme.TextWhite}):Play()
+            TweenService:Create(mainFrame, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = Theme.GlassTransparency}):Play()
+            updateShine(Theme.InactiveBorder)
         end
     end)
 end
 
-local MenuBat = createSpeedMenu("BAT FUCKER SPEEDS")
-MenuBat.Size = UDim2.new(0, 240, 0, 100)
-addSpeedSlider(MenuBat, 40, "Tracking Speed", "BatSpeed", 100)
+-- Build Floating HUD
+CreateFloatingButton("S4HUB", "ReturnHub", UDim2.new(0, 15, 0, 15), true)
+CreateFloatingButton("LOCK GUI", "LockGUI", UDim2.new(0, 15, 0, 65), true)
 
-local MenuFly = createSpeedMenu("FLY SPEEDS")
-addSpeedSlider(MenuFly, 40, "Fly Speed", "FlySpeed", 100)
-addSpeedSlider(MenuFly, 100, "Fly Carry Speed", "FlyCarrySpeed", 50)
+CreateDropdownFloatingButton("Auto Play", "AutoDuel", "AutoPlayLane", "Left", "Right", UDim2.new(0.5, 0, 0.1, 0))
+CreateDropdownFloatingButton("Bat Fucker", "BatFucker", "BatFuckerMode", "Standard", "Auto", UDim2.new(0.3, 0, 0.1, 0))
+CreateFloatingButton("Fly", "Fly", UDim2.new(0.7, 0, 0.1, 0), false)
 
-local MenuS4 = createSpeedMenu("S4BOOSTER SPEEDS")
-addSpeedSlider(MenuS4, 40, "Walk Speed", "WalkSpeed", 100)
-addSpeedSlider(MenuS4, 100, "Carry Speed", "CarrySpeed", 50)
+CreateFloatingButton("AIM FUCKER", "AimFucker", UDim2.new(0.5, 0, 0.8, 0), false)
+CreateFloatingButton("Instant Steal", "InstantSteal", UDim2.new(0.3, 0, 0.8, 0), false)
+CreateFloatingButton("Unwalk", "Unwalk", UDim2.new(0.7, 0, 0.8, 0), false)
+CreateFloatingButton("Drop", "Drop", UDim2.new(0.5, 0, 0.65, 0), false)
 
 -- ==========================================
 -- ========== POPULATE HUB TABS =============
@@ -613,13 +753,11 @@ local function CreateHubButton(parent, text, stateKey, hasGear, callback)
     local Btn = Instance.new("TextButton", BtnContainer)
     Btn.Size = UDim2.new(1, 0, 1, 0)
     Btn.BackgroundColor3 = Theme.Background
-    Btn.BackgroundTransparency = 0.55
+    Btn.BackgroundTransparency = Theme.GlassTransparency
     Btn.Text = ""
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
     
-    local Stroke = Instance.new("UIStroke", Btn)
-    Stroke.Thickness = STROKE_THICKNESS
-    local _, updateShine = applyShinyGradient(Stroke, Theme.InactiveStroke)
+    local _, updateShine = ApplyPlasmaBorder(Btn, true, Theme.InactiveBorder)
 
     local Label = Instance.new("TextLabel", Btn)
     Label.Size = UDim2.new(1, -20, 1, 0)
@@ -642,9 +780,10 @@ local function CreateHubButton(parent, text, stateKey, hasGear, callback)
         GearBtn.ZIndex = 5
         
         GearBtn.Activated:Connect(function()
-            MenuBat.Visible = false; MenuFly.Visible = false; MenuS4.Visible = false
+            MenuBat.Visible = false; MenuFly.Visible = false; MenuS4.Visible = false; MenuAutoDuel.Visible = false
             if stateKey == "BatFucker" then MenuBat.Visible = true
             elseif stateKey == "Fly" then MenuFly.Visible = true
+            elseif stateKey == "AutoDuel" then MenuAutoDuel.Visible = true
             elseif stateKey == "S4Booster" then MenuS4.Visible = true end
         end)
     end
@@ -669,565 +808,149 @@ local function CreateHubButton(parent, text, stateKey, hasGear, callback)
         if not UIRegistry[stateKey] then UIRegistry[stateKey] = {} end
         table.insert(UIRegistry[stateKey], function(state)
             if state then
-                TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.2}):Play()
-                updateShine(Theme.PurpleNeon)
+                TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.3}):Play()
+                updateShine(Theme.AccentFill) 
             else
-                TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = 0.55}):Play()
-                updateShine(Theme.InactiveStroke)
+                TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = Theme.GlassTransparency}):Play()
+                updateShine(Theme.InactiveBorder) 
             end
         end)
     else
         Btn.Activated:Connect(function()
             task.spawn(function()
-                TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.2}):Play()
-                updateShine(Theme.PurpleNeon)
+                TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.PanelBg, BackgroundTransparency = 0.3}):Play()
+                updateShine(Theme.AccentFill)
                 task.wait(0.15)
-                TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = 0.55}):Play()
-                updateShine(Theme.InactiveStroke)
+                TweenService:Create(Btn, TweenFast, {BackgroundColor3 = Theme.Background, BackgroundTransparency = Theme.GlassTransparency}):Play()
+                updateShine(Theme.InactiveBorder)
             end)
             if callback then callback() end
         end)
     end
 end
 
--- S4DUELS Tab
 CreateHubButton(TabS4Duels, "duelfucker", "DuelFuckerMode", false)
+CreateHubButton(TabS4Duels, "Auto Play", "AutoDuel", true) 
 CreateHubButton(TabS4Duels, "AIM FUCKER", "AimFucker", false) 
 CreateHubButton(TabS4Duels, "Bat Fucker", "BatFucker", true)
 CreateHubButton(TabS4Duels, "Fly", "Fly", true)
-CreateHubButton(TabS4Duels, "S4BOOSTER", "S4Booster", true, function(state)
-    if not state and Player.Character and Player.Character:FindFirstChild("Humanoid") then
-        Player.Character.Humanoid.WalkSpeed = 16
-    end
-end)
+CreateHubButton(TabS4Duels, "S4BOOSTER", "S4Booster", true)
 CreateHubButton(TabS4Duels, "Instant Steal", "InstantSteal", false)
 CreateHubButton(TabS4Duels, "Unwalk", "Unwalk", false)
 CreateHubButton(TabS4Duels, "Anti Ragdoll", "AntiRagdoll", false)
 CreateHubButton(TabS4Duels, "ESP", "ESP", false)
 
--- SERVER Tab
 CreateHubButton(TabServer, "FPS Booster", nil, false, function()
     local Lighting = game:GetService("Lighting")
-    local Terrain = workspace:FindFirstChildOfClass("Terrain")
-
     Lighting.GlobalShadows = false
     Lighting.FogEnd = 9e9
     Lighting.Brightness = 0
     pcall(function() Lighting.Technology = Enum.Technology.Compatibility end)
-    Lighting.EnvironmentDiffuseScale = 0
-    Lighting.EnvironmentSpecularScale = 0
-    
     for _, v in pairs(Lighting:GetChildren()) do
-        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") or v:IsA("Clouds") then
-            v:Destroy()
-        end
+        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") or v:IsA("Clouds") then v:Destroy() end
     end
-
-    if Terrain then
-        Terrain.WaterWaveSize = 0
-        Terrain.WaterWaveSpeed = 0
-        Terrain.WaterReflectance = 0
-        Terrain.WaterTransparency = 0
-        Terrain.Decoration = false
-        pcall(function() Terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(120, 150, 100)) end)
-    end
-
-    local hiddenClasses = {"Texture", "Decal", "ParticleEmitter", "Trail", "Sparkles", "Smoke", "Fire", "Explosion"}
     for _, v in pairs(workspace:GetDescendants()) do
         if v:IsA("BasePart") then
             v.Material = Enum.Material.SmoothPlastic
             v.Reflectance = 0
             v.CastShadow = false
-        else
-            for _, class in pairs(hiddenClasses) do
-                if v:IsA(class) then
-                    pcall(function() v:Destroy() end)
-                    break
-                end
-            end
         end
     end
-
-    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
 end)
 
 CreateHubButton(TabServer, "Taunt Chat", nil, false, function()
+    local TextChatService = game:GetService("TextChatService")
     if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
         local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
         if channel then channel:SendAsync("S4DUELS ON TOP") end
     else
-        local rme = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+        local rme = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
         if rme and rme:FindFirstChild("SayMessageRequest") then 
             rme.SayMessageRequest:FireServer("S4DUELS ON TOP", "All") 
         end
     end
 end)
-CreateHubButton(TabServer, "Rejoin Server", nil, false, function() TeleportService:Teleport(game.PlaceId, Player) end)
-CreateHubButton(TabServer, "Server Hop", nil, false, function() TeleportService:Teleport(game.PlaceId) end)
-CreateHubButton(TabServer, "Kick Self", nil, false, function() Player:Kick("S4DUELS Manual Disconnect") end)
-
+CreateHubButton(TabServer, "Rejoin Server", nil, false, function() game:GetService("TeleportService"):Teleport(game.PlaceId, Player) end)
+CreateHubButton(TabServer, "Server Hop", nil, false, function() game:GetService("TeleportService"):Teleport(game.PlaceId) end)
+CreateHubButton(TabServer, "Kick Self", nil, false, function() Player:Kick("S4DUELS Manual Disconnect - Evading Anti-Cheat.") end) 
 -- ==========================================
--- ========== SENTRY & PROMPT CACHE =========
+-- ========== INPUT SPOOFER (AIM) ===========
 -- ==========================================
-local promptCache = {}
-local sentryCache = {}
-
-local function updateCaches()
-    promptCache = {}
-    sentryCache = {}
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("ProximityPrompt") then 
-            table.insert(promptCache, obj) 
+pcall(function()
+    local OriginalIndex = nil
+    OriginalIndex = hookmetamethod(game, "__index", function(self, key)
+        if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
+            if tostring(self) == "Mouse" then
+                if key == "Hit" then return CurrentAimTarget.CFrame end
+                if key == "Target" then return CurrentAimTarget end
+                if key == "UnitRay" then
+                    local camPos = Camera.CFrame.Position
+                    return Ray.new(camPos, (CurrentAimTarget.Position - camPos).Unit)
+                end
+            end
         end
-        local lowerName = string.lower(obj.Name)
-        if string.find(lowerName, "sentry") or string.find(lowerName, "turret") then
-            table.insert(sentryCache, obj)
-        end
-    end
-end
-updateCaches()
+        return OriginalIndex(self, key)
+    end)
 
-workspace.DescendantAdded:Connect(function(obj)
-    if obj:IsA("ProximityPrompt") then 
-        table.insert(promptCache, obj) 
-    end
-    local lowerName = string.lower(obj.Name)
-    if string.find(lowerName, "sentry") or string.find(lowerName, "turret") then
-        table.insert(sentryCache, obj)
-    end
+    local OriginalNamecall = nil
+    OriginalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        if not checkcaller() and States.AimFucker and CurrentAimTarget and CachedHoldingTool then
+            if (method == "ScreenPointToRay" or method == "ViewportPointToRay") and (self == Camera or tostring(self) == "Camera") then
+                local camPos = Camera.CFrame.Position
+                return Ray.new(camPos, (CurrentAimTarget.Position - camPos).Unit)
+            end
+        end
+        return OriginalNamecall(self, ...)
+    end)
 end)
-
 -- ==========================================
--- ========== CORE V3 PHYSICS ENGINE ========
+-- ========== ANTI-DESYNC ESP ===============
 -- ==========================================
-local function clearPhysics(char)
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChild("Humanoid")
-    if hrp then
-        local att = hrp:FindFirstChild("S4_Attachment")
-        local lv = hrp:FindFirstChild("S4_LinearVelocity")
-        local ao = hrp:FindFirstChild("S4_AlignOrientation")
-        if att then att:Destroy() end
-        if lv then lv:Destroy() end
-        if ao then ao:Destroy() end
-    end
-    if hum and not States.AimFucker then 
-        hum.AutoRotate = true 
-    end
-end
-
-local function getPhysics(hrp)
-    local att = hrp:FindFirstChild("S4_Attachment")
-    if not att then
-        att = Instance.new("Attachment", hrp)
-        att.Name = "S4_Attachment"
-    end
-    local lv = hrp:FindFirstChild("S4_LinearVelocity")
-    if not lv then
-        lv = Instance.new("LinearVelocity", hrp)
-        lv.Name = "S4_LinearVelocity"
-        lv.Attachment0 = att
-        lv.MaxForce = 0 
-        lv.RelativeTo = Enum.ActuatorRelativeTo.World
-    end
-    local ao = hrp:FindFirstChild("S4_AlignOrientation")
-    if not ao then
-        ao = Instance.new("AlignOrientation", hrp)
-        ao.Name = "S4_AlignOrientation"
-        ao.Attachment0 = att
-        ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
-        ao.RigidityEnabled = true
-    end
-    return lv, ao
-end
-
-local VELOCITY_LERP_ALPHA = 0.15 
-local lastEffectSweep = 0
-local lastBatHit = 0
-local lastAimUpdate = 0
-
--- HEARTBEAT DRIVER
-RunService.Heartbeat:Connect(function()
-    local char = Player.Character
-    if not char then return end
-    local hum = char:FindFirstChild("Humanoid")
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hum or not hrp then return end
-
-    local needsLV = false
-    local needsAO = false
-
-    local tool = char:FindFirstChildOfClass("Tool")
-    CachedHoldingTool = (tool ~= nil)
-
-    if tick() - lastAimUpdate > 0.014 then 
-        lastAimUpdate = tick()
-        if States.AimFucker or States.BatFucker then
-            local shortestDist = math.huge
-            local targetPart = nil
-            for _, p in pairs(Players:GetPlayers()) do
-                if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                    local part = p.Character:FindFirstChild("Torso") or p.Character:FindFirstChild("UpperTorso") or p.Character:FindFirstChild("HumanoidRootPart")
-                    if part then
-                        local dist = (part.Position - hrp.Position).Magnitude
-                        if dist < shortestDist then
-                            shortestDist = dist
-                            targetPart = part
-                        end
-                    end
-                end
-            end
-            CurrentAimTarget = targetPart
-        else
-            CurrentAimTarget = nil
-        end
-    end
-
-    hum.PlatformStand = (States.BatFucker or States.Fly)
-
-    if States.AntiRagdoll then
-        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
-        
-        local state = hum:GetState()
-        if state == Enum.HumanoidStateType.Ragdoll or state == Enum.HumanoidStateType.FallingDown or state == Enum.HumanoidStateType.Physics then
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
-
-        for _, obj in pairs(hrp:GetChildren()) do
-            if obj:IsA("BodyVelocity") or obj:IsA("BodyThrust") or obj:IsA("BodyForce") or obj:IsA("LinearVelocity") or obj:IsA("VectorForce") or obj:IsA("AngularVelocity") then
-                if not string.find(obj.Name, "S4_") then
-                    obj:Destroy()
-                end
-            end
-        end
-
-        if not States.Fly and not States.BatFucker and not States.S4Booster then
-            hrp.AssemblyAngularVelocity = Vector3.zero
-            if hrp.AssemblyLinearVelocity.Magnitude > 100 then
-                hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0)
-            end
-        end
-
-        if tick() - lastEffectSweep > 0.5 then
-            lastEffectSweep = tick()
-            
-            local shouldLockFOV = false
-            local function checkFOVLock(parent)
-                if not parent then return end
-                for _, v in pairs(parent:GetChildren()) do
-                    local lowerName = string.lower(v.Name)
-                    if string.find(lowerName, "bee") or string.find(lowerName, "zoom") or string.find(lowerName, "yellow") then
-                        shouldLockFOV = true
-                    end
-                    if v:IsA("ColorCorrectionEffect") and v.TintColor.R > 0.6 and v.TintColor.G > 0.6 and v.TintColor.B < 0.5 then
-                        shouldLockFOV = true
-                    end
-                end
-            end
-            
-            checkFOVLock(char)
-            checkFOVLock(Player:FindFirstChild("PlayerGui"))
-            checkFOVLock(game:GetService("Lighting"))
-
-            if shouldLockFOV then
-                if Camera.FieldOfView < 70 or Camera.FieldOfView > 120 then
-                    Camera.FieldOfView = 70
-                end
-            end
-
-            local badKeywords = {"bee", "invert", "yellow", "zoom", "confusion", "stun", "ragdoll", "dizzy"}
-            local function sweepBadEffects(parent)
-                if not parent then return end
-                for _, v in pairs(parent:GetChildren()) do
-                    local lowerName = string.lower(v.Name)
-                    for _, bad in pairs(badKeywords) do
-                        if string.find(lowerName, bad) then
-                            if v:IsA("Script") or v:IsA("LocalScript") or v:IsA("ScreenGui") or v:IsA("ParticleEmitter") or v:IsA("ColorCorrectionEffect") or v:IsA("BlurEffect") or v:IsA("Folder") or v:IsA("StringValue") or v:IsA("BoolValue") then
-                                pcall(function() v:Destroy() end)
-                            end
-                            break
-                        end
-                    end
-                end
-            end
-            
-            sweepBadEffects(char)
-            sweepBadEffects(Player:FindFirstChild("PlayerGui"))
-            sweepBadEffects(game:GetService("Lighting"))
-            
-            for i = #sentryCache, 1, -1 do
-                local obj = sentryCache[i]
-                if not obj or not obj.Parent then
-                    table.remove(sentryCache, i)
-                else
-                    pcall(function() obj:Destroy() end)
-                    table.remove(sentryCache, i)
-                end
-            end
-        end
-    end
-
-    if States.AimFucker then
-        if CurrentAimTarget then
-            hum.AutoRotate = false
-            needsAO = true
-            local _, ao = getPhysics(hrp)
-            if not States.BatFucker and not States.Fly then 
-                ao.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(CurrentAimTarget.Position.X, hrp.Position.Y, CurrentAimTarget.Position.Z))
-            end
-            
-            if tool and tool:FindFirstChild("Handle") then
-                if tick() - lastBatHit > 0.1 then
-                    lastBatHit = tick()
-                    local handle = tool.Handle
-                    for i = #sentryCache, 1, -1 do
-                        local obj = sentryCache[i]
-                        if not obj or not obj.Parent then
-                            table.remove(sentryCache, i)
-                        else
-                            local targetHitbox = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
-                            if targetHitbox and firetouchinterest then
-                                pcall(function()
-                                    firetouchinterest(handle, targetHitbox, 0)
-                                    firetouchinterest(handle, targetHitbox, 1)
-                                end)
-                            end
-                        end
-                    end
-                end
-            end
-
-        else
-            if not States.BatFucker then hum.AutoRotate = true end
-        end
-    else
-        if not States.BatFucker then hum.AutoRotate = true end
-    end
-
-    if States.BatFucker then
-        hum.AutoRotate = false 
-        needsLV = true
-        needsAO = true
-        
-        local bfTarget = CurrentAimTarget 
-
-        if bfTarget then
-            local lv, ao = getPhysics(hrp)
-            lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
-            lv.MaxForce = 1e5
-            local targetPos = bfTarget.Position
-            local myPos = hrp.Position
-            local distanceToTarget = (targetPos - myPos).Magnitude
-
-            if distanceToTarget > 0.1 then
-                ao.CFrame = CFrame.lookAt(myPos, targetPos)
-            end
-
-            local dirFromTarget = (myPos - targetPos)
-            if dirFromTarget.Magnitude > 0.1 then 
-                dirFromTarget = dirFromTarget.Unit 
-            else 
-                dirFromTarget = Vector3.new(0, 0, 1) 
-            end
-            
-            local optimalStrikePos = targetPos + (dirFromTarget * 2.5)
-            local distToOptimal = (optimalStrikePos - myPos).Magnitude
-            local targetVel
-
-            if distanceToTarget > 8 then
-                local timeToReach = math.clamp(distanceToTarget / Config.BatSpeed, 0, 0.3)
-                local predictedPos = optimalStrikePos + (bfTarget.AssemblyLinearVelocity * timeToReach)
-                local chaseDir = (predictedPos - myPos)
-                if chaseDir.Magnitude > 0 then chaseDir = chaseDir.Unit else chaseDir = Vector3.zero end
-                
-                targetVel = chaseDir * Config.BatSpeed
-            else
-                if distToOptimal > 0.5 then
-                    local stickDir = (optimalStrikePos - myPos).Unit
-                    local lungeSpeed = math.min(25, distToOptimal * 8) 
-                    targetVel = bfTarget.AssemblyLinearVelocity + (stickDir * lungeSpeed)
-                else
-                    targetVel = bfTarget.AssemblyLinearVelocity
-                end
-            end
-            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
-        end
-
-    elseif States.Fly then
-        needsLV = true
-        needsAO = true
-        
-        local lv, ao = getPhysics(hrp)
-        lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
-        lv.MaxForce = 1e5
-        
-        ao.CFrame = Camera.CFrame
-
-        local moveDir = hum.MoveDirection
-        if moveDir.Magnitude > 0 then
-            local speed = Player:GetAttribute("Stealing") and Config.FlyCarrySpeed or Config.FlySpeed
-            local flatLook = Vector3.new(Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z)
-            if flatLook.Magnitude > 0 then flatLook = flatLook.Unit else flatLook = Vector3.new(0,0,1) end
-            
-            local forwardMag = moveDir:Dot(flatLook)
-            local rightMag = moveDir:Dot(Camera.CFrame.RightVector)
-            
-            local flyDir = (Camera.CFrame.LookVector * forwardMag + Camera.CFrame.RightVector * rightMag)
-            if flyDir.Magnitude > 0 then flyDir = flyDir.Unit end
-            
-            local targetVel = flyDir * speed
-            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
-        else
-            lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.zero, VELOCITY_LERP_ALPHA)
-        end
-
-    elseif States.S4Booster then
-        needsLV = true
-        local lv, _ = getPhysics(hrp)
-        
-        lv.ForceLimitMode = Enum.ForceLimitMode.PerAxis
-        lv.MaxAxesForce = Vector3.new(1e5, 0, 1e5)
-        
-        if hum.MoveDirection.Magnitude > 0 then
-            local speed = Player:GetAttribute("Stealing") and Config.CarrySpeed or Config.WalkSpeed
-            local velocityDir = hum.MoveDirection * speed
-            local targetVel = Vector3.new(velocityDir.X, 0, velocityDir.Z)
-            
-            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
-        else
-            lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.zero, VELOCITY_LERP_ALPHA)
-        end
-    end
-
-    if not needsLV and hrp:FindFirstChild("S4_LinearVelocity") then
-        hrp.S4_LinearVelocity.MaxForce = 0
-        hrp.S4_LinearVelocity.MaxAxesForce = Vector3.zero
-    end
-    if not needsAO and hrp:FindFirstChild("S4_AlignOrientation") then
-        hrp.S4_AlignOrientation:Destroy()
-    end
-    if not needsLV and not needsAO then
-        clearPhysics(char)
-    end
-end)
-
-RunService.Heartbeat:Connect(function()
-    if not States.InstantSteal then return end
-    if not Player.Character then return end
-    if Player:GetAttribute("Stealing") then return end
-
-    local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    local closestPrompt = nil
-    local closestDist = math.huge
-
-    for i = #promptCache, 1, -1 do
-        local prompt = promptCache[i]
-        if not prompt or not prompt.Parent then
-            table.remove(promptCache, i)
-        elseif prompt.Enabled then
-            local act = tostring(prompt.ActionText)
-            if act == "Steal" or act == "Rob" or act == "Collect" then
-                local part = prompt.Parent
-                local pos = part:IsA("BasePart") and part.Position or (part:IsA("Attachment") and part.WorldPosition or nil)
-                if pos then
-                    local dist = (pos - hrp.Position).Magnitude
-                    if dist <= prompt.MaxActivationDistance then
-                        if dist < closestDist then
-                            closestDist = dist
-                            closestPrompt = prompt
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    if closestPrompt and not closestPrompt:GetAttribute("S4_Stealing") then
-        closestPrompt:SetAttribute("S4_Stealing", true)
-        task.spawn(function()
-            pcall(function()
-                closestPrompt.RequiresLineOfSight = false
-                closestPrompt.HoldDuration = 0
-                if type(fireproximityprompt) == "function" then
-                    fireproximityprompt(closestPrompt, 1)
-                    fireproximityprompt(closestPrompt, 0)
-                else
-                    closestPrompt:InputHoldBegin()
-                    task.wait()
-                    closestPrompt:InputHoldEnd()
-                end
-            end)
-            task.wait(0.1) 
-            if closestPrompt then closestPrompt:SetAttribute("S4_Stealing", nil) end
-        end)
-    end
-end)
-
-task.spawn(function()
-    while task.wait(0.5) do
-        if States.Unwalk then
-            local char = Player.Character
-            if char then
-                local anim = char:FindFirstChild("Animate")
-                if anim then anim.Disabled = true end
-                local hum = char:FindFirstChild("Humanoid")
-                if hum then
-                    for _, track in pairs(hum:GetPlayingAnimationTracks()) do track:Stop() end
-                end
-            end
-        end
-    end
-end)
-
 task.spawn(function()
     while task.wait(0.5) do
         if States.ESP then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= Player and p.Character then
-                    if not p.Character:FindFirstChild("S4_ESP_HL") then
+                    local char = p.Character
+                    if not char:FindFirstChild("S4_ESP_HL") then
                         local hl = Instance.new("Highlight")
                         hl.Name = "S4_ESP_HL"
-                        hl.FillColor = Theme.Danger
-                        hl.FillTransparency = 0.5
-                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                        hl.Adornee = p.Character
-                        hl.Parent = p.Character
+                        hl.FillColor = Theme.BorderNeon 
+                        hl.FillTransparency = 0.4
+                        hl.OutlineColor = Theme.TextWhite
+                        hl.OutlineTransparency = 0.2
+                        hl.Adornee = char
+                        hl.Parent = char
                     end
-                    
-                    if not p.Character:FindFirstChild("S4_ESP_TAG") then
-                        local head = p.Character:FindFirstChild("Head") or p.Character:FindFirstChild("HumanoidRootPart") or p.Character.PrimaryPart
-                        if head then
+                    local head = char:FindFirstChild("Head") 
+                    if head then
+                        if not char:FindFirstChild("S4_ESP_TAG") then
                             local bb = Instance.new("BillboardGui")
                             bb.Name = "S4_ESP_TAG"
                             bb.Size = UDim2.new(0, 200, 0, 40)
                             bb.AlwaysOnTop = true
                             bb.StudsOffset = Vector3.new(0, 2.5, 0)
                             bb.Adornee = head
-                            bb.Parent = p.Character
+                            bb.Parent = char
                             
                             local txt = Instance.new("TextLabel", bb)
                             txt.Size = UDim2.new(1, 0, 1, 0)
                             txt.BackgroundTransparency = 1
                             txt.Text = p.Name
-                            txt.TextColor3 = Theme.TextWhite
+                            txt.TextColor3 = Theme.AccentFill
                             txt.Font = Enum.Font.GothamBlack
-                            txt.TextSize = 13
+                            txt.TextSize = 14
                             
                             local stroke = Instance.new("TextStroke", txt)
                             stroke.Color = Color3.new(0, 0, 0)
-                            stroke.Thickness = 1
+                            stroke.Thickness = 1.5
                             stroke.Transparency = 0
-                        end
-                    else
-                        local tag = p.Character:FindFirstChild("S4_ESP_TAG")
-                        local head = p.Character:FindFirstChild("Head") or p.Character:FindFirstChild("HumanoidRootPart") or p.Character.PrimaryPart
-                        if tag and head and tag.Adornee ~= head then
-                            tag.Adornee = head
+                        else
+                            local tag = char:FindFirstChild("S4_ESP_TAG")
+                            if tag and tag.Adornee ~= head then
+                                tag.Adornee = head
+                            end
                         end
                     end
                 end
@@ -1245,44 +968,471 @@ task.spawn(function()
     end
 end)
 
-UserInputService.JumpRequest:Connect(function()
-    if States.InfJump and Player.Character then
-        local hrp = Player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 50, hrp.AssemblyLinearVelocity.Z)
+-- ==========================================
+-- ========== INSTANT STEAL CACHE ===========
+-- ==========================================
+local promptCache = {}
+local function updatePromptCache()
+    promptCache = {}
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then table.insert(promptCache, obj) end
+    end
+end
+updatePromptCache()
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("ProximityPrompt") then table.insert(promptCache, obj) end
+end)
+
+-- ==========================================
+-- ========== ANTI-RAGDOLL V2 ===============
+-- ==========================================
+local isBoosting = false
+local BOOST_SPEED = 400
+local DEFAULT_SPEED = 16
+
+local function forceExitRagdoll(char, hum, root)
+    pcall(function() Player:SetAttribute("RagdollEndTime", workspace:GetServerTimeNow()) end) [cite: 24]
+    for _, descendant in ipairs(char:GetDescendants()) do
+        if descendant:IsA("BallSocketConstraint") or (descendant:IsA("Attachment") and descendant.Name:find("RagdollAttachment")) then
+            descendant:Destroy()
+        end
+    end [cite: 24]
+    if not isBoosting then
+        isBoosting = true
+        hum.WalkSpeed = BOOST_SPEED
+    end [cite: 24]
+    if hum.Health > 0 then
+        hum:ChangeState(Enum.HumanoidStateType.Running)
+    end [cite: 25]
+    root.Anchored = false [cite: 25]
+end
+
+local function isRagdolled(hum)
+    local state = hum:GetState()
+    local ragdollStates = {[Enum.HumanoidStateType.Physics] = true, [Enum.HumanoidStateType.Ragdoll] = true, [Enum.HumanoidStateType.FallingDown] = true}
+    if ragdollStates[state] then return true end [cite: 23]
+    local endTime = Player:GetAttribute("RagdollEndTime")
+    if endTime and (endTime - workspace:GetServerTimeNow()) > 0 then return true end [cite: 23]
+    return false
+end
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if States.AntiRagdoll then
+            local char = Player.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if hum and root then
+                if isRagdolled(hum) then
+                    forceExitRagdoll(char, hum, root)
+                elseif isBoosting and not isRagdolled(hum) then
+                    isBoosting = false
+                    hum.WalkSpeed = DEFAULT_SPEED [cite: 26]
+                end
+            end
         end
     end
 end)
 
-local lastFpsUpdate = 0
-local frameCount = 0
-
-RunService.RenderStepped:Connect(function(deltaTime)
-    frameCount = frameCount + 1
-    if tick() - lastFpsUpdate >= 0.5 then
-        local fps = math.floor(frameCount / (tick() - lastFpsUpdate))
-        local ping = 0
-        pcall(function() ping = math.floor(Player:GetNetworkPing() * 1000) end)
-        StatsLabel.Text = string.format("FPS: %d | PING: %dms", fps, ping)
-        frameCount = 0
-        lastFpsUpdate = tick()
+-- ==========================================
+-- ========== CORE PHYSICS ENGINE ===========
+-- ==========================================
+local function clearPhysics(char)
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChild("Humanoid")
+    if hrp then
+        local att = hrp:FindFirstChild("S4_Attachment")
+        local lv = hrp:FindFirstChild("S4_LinearVelocity")
+        local ao = hrp:FindFirstChild("S4_AlignOrientation")
+        if att then att:Destroy() end
+        if lv then lv:Destroy() end
+        if ao then ao:Destroy() end
     end
+    if hum and not States.AimFucker then hum.AutoRotate = true end
+end
+
+local function getPhysics(hrp)
+    local att = hrp:FindFirstChild("S4_Attachment")
+    if not att then
+        att = Instance.new("Attachment", hrp)
+        att.Name = "S4_Attachment"
+    end
+    local lv = hrp:FindFirstChild("S4_LinearVelocity")
+    if not lv then
+        lv = Instance.new("LinearVelocity", hrp)
+        lv.Name = "S4_LinearVelocity"
+        lv.Attachment0 = att
+        lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
+        lv.MaxForce = 0 
+        lv.RelativeTo = Enum.ActuatorRelativeTo.World
+    end
+    local ao = hrp:FindFirstChild("S4_AlignOrientation")
+    if not ao then
+        ao = Instance.new("AlignOrientation", hrp)
+        ao.Name = "S4_AlignOrientation"
+        ao.Attachment0 = att
+        ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+        ao.RigidityEnabled = false 
+        ao.MaxTorque = 100000
+        ao.Responsiveness = 40 
+    end
+    return lv, ao
+end
+
+-- ==========================================
+-- ========== INVIS CLOAK HELPER ============
+-- ==========================================
+local cloakEquipThread = nil
+
+local function EquipAndActivateCloak(char)
+    if not char then return end
+    
+    if cloakEquipThread then pcall(task.cancel, cloakEquipThread) end
+    
+    cloakEquipThread = task.spawn(function()
+        local hum = char:FindFirstChild("Humanoid")
+        local currentTool = char:FindFirstChildOfClass("Tool")
+        
+        if currentTool and currentTool.Name == "Invisibility Cloak" then
+            pcall(function() currentTool:Activate() end)
+            return
+        end
+        
+        if currentTool and hum then
+            -- 2.5s override delay if holding another tool
+            task.wait(2.5) 
+            pcall(function() hum:UnequipTools() end)
+            task.wait(0.05) 
+        end
+
+        local cloak = Player.Backpack:FindFirstChild("Invisibility Cloak") or char:FindFirstChild("Invisibility Cloak")
+        if cloak then
+            cloak.Parent = char
+            task.wait(0.1) 
+            if cloak.Parent == char then
+                pcall(function() cloak:Activate() end)
+            end
+        end
+    end)
+end
+
+-- ==========================================
+-- ========== WAYPOINTS (AUTO DUEL) =========
+-- ==========================================
+local RightWaypoints = {
+    Vector3.new(-473.04, -6.99, 29.71), Vector3.new(-483.57, -5.10, 18.74), [cite: 2]
+    Vector3.new(-475.00, -6.99, 26.43), Vector3.new(-474.67, -6.94, 105.48), [cite: 2]
+}
+local LeftWaypoints = {
+    Vector3.new(-472.49, -7.00, 90.62), Vector3.new(-484.62, -5.10, 100.37), [cite: 2]
+    Vector3.new(-475.08, -7.00, 93.29), Vector3.new(-474.22, -6.96, 16.18), [cite: 2]
+}
+local currentWaypointIndex = 1
+
+-- ==========================================
+-- ========== MAIN HEARTBEAT LOOP ===========
+-- ==========================================
+local lastAimUpdate = 0
+local VELOCITY_LERP_ALPHA = 0.15 
+local lastCarryState = false
+
+RunService.Heartbeat:Connect(function(deltaTime)
+    local char = Player.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp then return end
+
+    local needsLV = false
+    local needsAO = false
+    local isCarrying = Player:GetAttribute("Stealing") or false
+
+    -- 70Hz Aim & Tool Cache Update
+    local tool = char:FindFirstChildOfClass("Tool")
+    CachedHoldingTool = (tool ~= nil)
+
+    if tick() - lastAimUpdate > 0.014 then 
+        lastAimUpdate = tick()
+        if States.AimFucker or States.BatFucker then
+            local shortestDist = math.huge
+            local targetPart = nil
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                    local part = p.Character:FindFirstChild("Torso") or p.Character:FindFirstChild("UpperTorso")
+                    if part then
+                        local dist = (part.Position - hrp.Position).Magnitude
+                        if dist < shortestDist then
+                            shortestDist = dist
+                            targetPart = part
+                        end
+                    end
+                end
+            end
+            if CurrentAimTarget ~= targetPart then
+                MedusaUsedOnTarget = false -- Reset medusa state on new target
+            end
+            CurrentAimTarget = targetPart
+        else
+            CurrentAimTarget = nil
+        end
+    end
+
+    -- UNWALK (Animation Freezer)
+    if States.Unwalk then
+        local anim = char:FindFirstChild("Animate")
+        if anim then anim.Disabled = true end
+        for _, track in pairs(hum:GetPlayingAnimationTracks()) do track:Stop() end
+    end
+
+    -- INSTANT STEAL (0.17s Optimal Intercept)
+    if States.InstantSteal and not isCarrying then
+        local closestPrompt = nil
+        local closestDist = math.huge
+
+        for i = #promptCache, 1, -1 do
+            local prompt = promptCache[i]
+            if not prompt or not prompt.Parent then
+                table.remove(promptCache, i)
+            elseif prompt.Enabled then
+                local act = tostring(prompt.ActionText)
+                if act == "Steal" or act == "Rob" or act == "Collect" then
+                    local part = prompt.Parent
+                    local pos = part:IsA("BasePart") and part.Position or (part:IsA("Attachment") and part.WorldPosition or nil)
+                    if pos then
+                        local dist = (pos - hrp.Position).Magnitude
+                        if dist <= prompt.MaxActivationDistance then
+                            if dist < closestDist then
+                                closestDist = dist
+                                closestPrompt = prompt
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        if closestPrompt and not closestPrompt:GetAttribute("S4_Stealing") then
+            closestPrompt:SetAttribute("S4_Stealing", true)
+            task.spawn(function()
+                pcall(function()
+                    closestPrompt.RequiresLineOfSight = false
+                    closestPrompt.HoldDuration = 0.17 -- 0.17s Instant Override
+                    closestPrompt:InputHoldBegin()
+                    task.wait(0.17)
+                    closestPrompt:InputHoldEnd()
+                end)
+                task.wait(0.2) 
+                if closestPrompt then closestPrompt:SetAttribute("S4_Stealing", nil) end
+            end)
+        end
+    end
+-- ==========================================
+    -- ========== AUTO DUEL (SMART PATH) ========
+    -- ==========================================
+    if States.AutoDuel then
+        hum.AutoRotate = false
+        needsLV = true
+        needsAO = true
+        
+        local lv, ao = getPhysics(hrp)
+        lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
+        lv.MaxForce = 1e5
+        
+        local targetWaypoints = Config.AutoPlayLane == "Right" and RightWaypoints or LeftWaypoints
+        local speed = isCarrying and Config.AutoDuelCarrySpeed or Config.AutoDuelSpeed
+        
+        -- Smart Return Logic: If we grab the brainrot, immediately pathfind backwards
+        if isCarrying and currentWaypointIndex > 1 then
+            currentWaypointIndex = currentWaypointIndex - 1
+        elseif not isCarrying and currentWaypointIndex < #targetWaypoints then
+            -- Only advance forward if we don't have the brainrot
+            currentWaypointIndex = currentWaypointIndex + 1
+        end
+        
+        local targetPos = targetWaypoints[currentWaypointIndex]
+        if targetPos then
+            local myPos = hrp.Position
+            local diff = Vector3.new(targetPos.X, 0, targetPos.Z) - Vector3.new(myPos.X, 0, myPos.Z)
+            
+            ao.CFrame = CFrame.lookAt(myPos, Vector3.new(targetPos.X, myPos.Y, targetPos.Z))
+            
+            if diff.Magnitude > 3 then
+                local targetVel = diff.Unit * speed
+                lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.new(targetVel.X, hrp.AssemblyLinearVelocity.Y, targetVel.Z), VELOCITY_LERP_ALPHA)
+            else
+                -- Reached the end (enemy base). Wait for Stealing attribute.
+                if currentWaypointIndex == #targetWaypoints and not isCarrying then
+                    lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0), VELOCITY_LERP_ALPHA)
+                elseif currentWaypointIndex == 1 and isCarrying then
+                    -- Reached our base with the item. Wait to score/drop.
+                    lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0), VELOCITY_LERP_ALPHA)
+                end
+            end
+        end
+    end
+-- ==========================================
+    -- ========== OP FLY FUCKER =================
+    -- ==========================================
+    if States.Fly and not States.AutoDuel then
+        needsLV = true
+        local lv, _ = getPhysics(hrp)
+        lv.ForceLimitMode = Enum.ForceLimitMode.PerAxis
+        lv.MaxAxesForce = Vector3.new(1e5, 1e5, 1e5)
+        
+        local speed = isCarrying and Config.FlyCarrySpeed or Config.FlySpeed
+        local moveDir = hum.MoveDirection
+        
+        if moveDir.Magnitude > 0 then
+            -- Blends mobile joystick with camera pitch for true 3D flight
+            local camPitch = Camera.CFrame.LookVector.Y
+            local targetVel = Vector3.new(moveDir.X, camPitch, moveDir.Z).Unit * speed
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
+        else
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.zero, VELOCITY_LERP_ALPHA)
+        end
+
+        -- Speed Bypass (Invis Cloak Auto-Equip)
+        if Config.SpeedBypassEnabled and not isCarrying then
+            EquipAndActivateCloak(char)
+        end
+    end
+    -- ==========================================
+    -- ========== S4BOOSTER (2D LERP) ===========
+    -- ==========================================
+    if States.S4Booster and not States.AutoDuel then
+        needsLV = true
+        local lv, _ = getPhysics(hrp)
+        
+        lv.ForceLimitMode = Enum.ForceLimitMode.PerAxis
+        lv.MaxAxesForce = Vector3.new(1e5, 0, 1e5) -- Prevent Y-axis floating
+        
+        if hum.MoveDirection.Magnitude > 0 then
+            local speed = isCarrying and Config.CarrySpeed or Config.WalkSpeed
+            local velocityDir = hum.MoveDirection * speed
+            local targetVel = Vector3.new(velocityDir.X, hrp.AssemblyLinearVelocity.Y, velocityDir.Z)
+            
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, VELOCITY_LERP_ALPHA)
+        else
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0), VELOCITY_LERP_ALPHA)
+        end
+    end
+
+    -- ==========================================
+    -- ========== BAT FUCKER (SMOOTH AIM) =======
+    -- ==========================================
+    if States.BatFucker and not States.AutoDuel then
+        hum.AutoRotate = false 
+        needsLV = true
+        needsAO = true
+        
+        local bfTarget = CurrentAimTarget 
+
+        if bfTarget then
+            local lv, ao = getPhysics(hrp)
+            lv.ForceLimitMode = Enum.ForceLimitMode.Magnitude
+            lv.MaxForce = 45000 
+            
+            local targetPos = bfTarget.Position
+            local myPos = hrp.Position
+            local distanceToTarget = (targetPos - myPos).Magnitude
+
+            if distanceToTarget > 0.1 then
+                ao.CFrame = CFrame.lookAt(myPos, Vector3.new(targetPos.X, myPos.Y, targetPos.Z))
+            end
+
+            local dirFromTarget = (myPos - targetPos)
+            if dirFromTarget.Magnitude > 0.1 then 
+                dirFromTarget = dirFromTarget.Unit 
+            else 
+                dirFromTarget = Vector3.new(0, 0, 1) 
+            end
+            
+            local optimalStrikePos = targetPos + (dirFromTarget * 3)
+            local distToOptimal = (optimalStrikePos - myPos).Magnitude
+            local targetVel
+
+            if distanceToTarget > 8 then
+                local timeToReach = math.clamp(distanceToTarget / Config.BatSpeed, 0, 0.3)
+                local predictedPos = optimalStrikePos + (bfTarget.AssemblyLinearVelocity * timeToReach)
+                local chaseDir = (predictedPos - myPos)
+                if chaseDir.Magnitude > 0 then chaseDir = chaseDir.Unit else chaseDir = Vector3.zero end
+                
+                targetVel = chaseDir * Config.BatSpeed
+            else
+                if distToOptimal > 0.5 then
+                    local stickDir = (optimalStrikePos - myPos).Unit
+                    local lungeSpeed = math.min(15, distToOptimal * 5)
+                    targetVel = bfTarget.AssemblyLinearVelocity + (stickDir * lungeSpeed)
+                else
+                    targetVel = bfTarget.AssemblyLinearVelocity
+                end
+            end
+            
+            lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, 0.12)
+
+            -- AUTO FUCKER LOGIC
+            if Config.BatFuckerMode == "Auto" then
+                -- Fire Medusa Once per Target
+                if not MedusaUsedOnTarget and distanceToTarget < 15 then
+                    local medusa = Player.Backpack:FindFirstChild("Medusa's Head") or char:FindFirstChild("Medusa's Head")
+                    if medusa then
+                        medusa.Parent = char
+                        pcall(function() medusa:Activate() end)
+                        MedusaUsedOnTarget = true
+                    end
+                end
+                
+                -- Spam Bat Continuously
+                if distanceToTarget < 6 then
+                    local bat = Player.Backpack:FindFirstChild("Bat") or char:FindFirstChild("Bat")
+                    if bat and tool ~= bat then
+                        bat.Parent = char
+                    end
+                    if tool and tool.Name == "Bat" then
+                        pcall(function() tool:Activate() end)
+                    end
+                end
+            end
+        end
+    end
+
+    -- ==========================================
+    -- ========== PHYSICS CLEANUP LOGIC =========
+    -- ==========================================
+    if not needsLV and hrp:FindFirstChild("S4_LinearVelocity") then
+        hrp.S4_LinearVelocity.MaxForce = 0
+        hrp.S4_LinearVelocity.MaxAxesForce = Vector3.zero
+    end
+    if not needsAO and hrp:FindFirstChild("S4_AlignOrientation") then
+        hrp.S4_AlignOrientation:Destroy()
+    end
+    if not needsLV and not needsAO then
+        clearPhysics(char)
+    end
+    
+    lastCarryState = isCarrying
 end)
 
+-- ==========================================
+-- ========== DEATH/RESPAWN CLEANUP =========
+-- ==========================================
 Player.CharacterAdded:Connect(function(char)
     char:WaitForChild("Humanoid").Died:Connect(function()
         States.BatFucker = false
         States.AimFucker = false
         States.Fly = false
+        States.AutoDuel = false
+        lastCarryState = false
+        MedusaUsedOnTarget = false
+        currentWaypointIndex = 1
         
-        if UIRegistry["BatFucker"] then
-            for _, func in pairs(UIRegistry["BatFucker"]) do func(false) end
-        end
-        if UIRegistry["AimFucker"] then
-            for _, func in pairs(UIRegistry["AimFucker"]) do func(false) end
-        end
-        if UIRegistry["Fly"] then
-            for _, func in pairs(UIRegistry["Fly"]) do func(false) end
-        end
+        -- Reset UI Visually
+        if UIRegistry["BatFucker"] then for _, f in pairs(UIRegistry["BatFucker"]) do f(false) end end
+        if UIRegistry["AimFucker"] then for _, f in pairs(UIRegistry["AimFucker"]) do f(false) end end
+        if UIRegistry["Fly"] then for _, f in pairs(UIRegistry["Fly"]) do f(false) end end
+        if UIRegistry["AutoDuel"] then for _, f in pairs(UIRegistry["AutoDuel"]) do f(false) end end
     end)
 end)
+
+print("S4DUELS V6 MASTER BLUEPRINT INJECTED SUCCESSFULLY.")
