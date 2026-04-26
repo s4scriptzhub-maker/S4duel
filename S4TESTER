@@ -487,54 +487,137 @@ local function CreateHubButton(parent, text, stateKey, hasGear, callback)
     end
 end
 
-CreateHubButton(TabS4Duels, "DROP", "DROP", true, function()
-local _wfConns = {}
-local _wfActive = false
+-- S4DUELS Tab
+CreateHubButton(TabS4Duels, "duelfucker", "DuelFuckerMode", false)
+CreateHubButton(TabS4Duels, "Auto Duel", "AutoDuel", true, function()
+    -- [placeholder for auto duel logics]
+end) 
+CreateHubButton(TabS4Duels, "AIM FUCKER", "AimFucker", false, function()
+    -- [placeholder for aim fucker logics]
+end) 
+CreateHubButton(TabS4Duels, "Bat Fucker", "BatFucker", true, function()
+    -- [placeholder for bat fucker logics]
+end)
+CreateHubButton(TabS4Duels, "Fly", "Fly", true, function()
+    -- [placeholder for fly logics]
+end)
+CreateHubButton(TabS4Duels, "S4BOOSTER", "S4Booster", true, function()
+    -- [placeholder for s4booster logics]
+end)
+CreateHubButton(TabS4Duels, "drop", "drop", false, function()
+    -- [placeholder for instant steal logics]
+end)
+CreateHubButton(TabS4Duels, "Unwalk", "Unwalk", false, function()
+    -- [placeholder for unwalk logics]
+end)
+CreateHubButton(TabS4Duels, "Anti Ragdoll", "AntiRagdoll", false, function()
+    -- [placeholder for anti ragdoll logics]
+end)
+CreateHubButton(TabS4Duels, "ESP", "ESP", false, function()
+    -- ESP logic is actively handled below
+end)
 
-local function stopWalkFling()
-    _wfActive = false
-    for _, c in ipairs(_wfConns) do
-        if typeof(c) == "RBXScriptConnection" then 
-            c:Disconnect()
-        elseif typeof(c) == "thread" then 
-            pcall(task.cancel, c) 
+-- SERVER Tab
+CreateHubButton(TabServer, "FPS Booster", nil, false, function()
+    -- [placeholder for fps booster logics]
+end)
+CreateHubButton(TabServer, "Taunt Chat", nil, false, function()
+    if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+        local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+        if channel then channel:SendAsync("S4DUELS ON TOP") end
+    else
+        local rme = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+        if rme and rme:FindFirstChild("SayMessageRequest") then 
+            rme.SayMessageRequest:FireServer("S4DUELS ON TOP", "All") 
         end
     end
-    _wfConns = {}
-end
+end)
+CreateHubButton(TabServer, "Rejoin Server", nil, false, function() 
+    -- [placeholder for rejoin logics]
+end)
+CreateHubButton(TabServer, "Server Hop", nil, false, function() 
+    -- [placeholder for server hop logics]
+end)
+CreateHubButton(TabServer, "Kick Self", nil, false, function() 
+Player:Kick("S4DUELS Manual Disconnect-TAXED BY S4HUB.")
+end)
 
-local function startWalkFling()
-    stopWalkFling()
-    _wfActive = true
-    
-    table.insert(_wfConns, rs.Stepped:Connect(function()
-        if not _wfActive then return end
-        for _, p in ipairs(game.Players:GetPlayers()) do
-            if p ~= plr and p.Character then
-                for _, part in ipairs(p.Character:GetChildren()) do
-                    if part:IsA("BasePart") then part.CanCollide = false end
+-- =======================================
+-- ========== ESP RENDER ENGINE =============
+-- ==========================================
+task.spawn(function()
+    while task.wait(0.5) do
+        if States.ESP then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= Player and p.Character then
+                    local char = p.Character
+                    
+                    -- 1. Pure Visual Highlight (Bypasses HRP Desync)
+                    if not char:FindFirstChild("S4_ESP_HL") then
+                        local hl = Instance.new("Highlight")
+                        hl.Name = "S4_ESP_HL"
+                        hl.FillColor = Theme.PurpleNeon 
+                        hl.FillTransparency = 0.4
+                        hl.OutlineColor = Theme.TextWhite
+                        hl.OutlineTransparency = 0.2
+                        hl.Adornee = char
+                        hl.Parent = char
+                    end
+                    
+                    -- 2. Head-Tracking Name Tag (Bypasses HRP Desync)
+                    local head = char:FindFirstChild("Head") 
+                    if head then
+                        if not char:FindFirstChild("S4_ESP_TAG") then
+                            local bb = Instance.new("BillboardGui")
+                            bb.Name = "S4_ESP_TAG"
+                            bb.Size = UDim2.new(0, 200, 0, 40)
+                            bb.AlwaysOnTop = true
+                            bb.StudsOffset = Vector3.new(0, 2.5, 0) -- Floats exactly above skull
+                            bb.Adornee = head
+                            bb.Parent = char
+                            
+                            local txt = Instance.new("TextLabel", bb)
+                            txt.Size = UDim2.new(1, 0, 1, 0)
+                            txt.BackgroundTransparency = 1
+                            txt.Text = p.Name
+                            txt.TextColor3 = Theme.PurpleNeon
+                            txt.Font = Enum.Font.GothamBlack
+                            txt.TextSize = 14
+                            
+                            local stroke = Instance.new("TextStroke", txt)
+                            stroke.Color = Color3.new(0, 0, 0)
+                            stroke.Thickness = 1.5
+                            stroke.Transparency = 0
+                        else
+                            -- Force update adornee just in case they respawned/desynced internally
+                            local tag = char:FindFirstChild("S4_ESP_TAG")
+                            if tag and tag.Adornee ~= head then
+                                tag.Adornee = head
+                            end
+                        end
+                    end
+                end
+            end
+        else
+            -- Cleanup when turned off
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Character then
+                    local hl = p.Character:FindFirstChild("S4_ESP_HL")
+                    if hl then hl:Destroy() end
+                    local tag = p.Character:FindFirstChild("S4_ESP_TAG")
+                    if tag then tag:Destroy() end
                 end
             end
         end
-    end))
-
-    local co = coroutine.create(function()
-        while _wfActive do
-            rs.Heartbeat:Wait()
-            local char = plr.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            if not root then continue end
-            
-            local vel = root.Velocity
-            root.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
-            
-            rs.RenderStepped:Wait()
-            if root and root.Parent then root.Velocity = vel end
-            
-            rs.Stepped:Wait()
-            if root and root.Parent then 
-                root.Velocity = vel + Vector3.new(0, 0.1, 0) 
-            end
-        end
-    end)
+    end
 end)
+
+-- ==========================================
+-- ========== GLOBAL LOGIC THREADS ==========
+-- ==========================================
+-- [placeholder for global __index and __namecall spoofing hooks]
+-- [placeholder for global Heartbeat physics loop]
+-- [placeholder for proxy prompt threads]
+-- [placeholder for FPS/Ping updates]
+
+print("S4DUELS V6.1 Framework Loaded: ESP Modules Active")
