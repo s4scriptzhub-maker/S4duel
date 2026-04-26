@@ -666,10 +666,6 @@ local function getPhysics(hrp)
     end
     return lv, ao
 end
-
--- ==========================================
--- ========== HEARTBEAT DRIVER ==============
--- ==========================================
 RunService.Heartbeat:Connect(function(deltaTime)
     local char = Player.Character
     if not char then return end
@@ -748,6 +744,7 @@ end) -- Closes the Heartbeat Loop
             lv.VectorVelocity = lv.VectorVelocity:Lerp(targetVel, 0.12)
         end
     end
+end)
 -- [placeholder for proxy prompt threads]
 -- [placeholder for FPS/Ping updates]
 
