@@ -531,7 +531,7 @@ CreateHubButton(TabServer, "Server Hop", nil, false, function()
     -- [placeholder for server hop logics]
 end)
 CreateHubButton(TabServer, "Kick Self", nil, false, function() 
-    player:kick (TAXED BY S4HUB)
+    player:kick ("TAXED BY S4HUB")
 end)
 
 -- ==========================================
