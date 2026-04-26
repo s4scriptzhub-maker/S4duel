@@ -486,3 +486,7 @@ local function CreateHubButton(parent, text, stateKey, hasGear, callback)
         end)
     end
 end
+
+CreateHubButton(TabS4Duels, "DROP", "DROP", true, function()
+    -- [placeholder for fly logics]
+end)
