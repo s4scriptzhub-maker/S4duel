@@ -488,5 +488,53 @@ local function CreateHubButton(parent, text, stateKey, hasGear, callback)
 end
 
 CreateHubButton(TabS4Duels, "DROP", "DROP", true, function()
-    -- [placeholder for fly logics]
+local _wfConns = {}
+local _wfActive = false
+
+local function stopWalkFling()
+    _wfActive = false
+    for _, c in ipairs(_wfConns) do
+        if typeof(c) == "RBXScriptConnection" then 
+            c:Disconnect()
+        elseif typeof(c) == "thread" then 
+            pcall(task.cancel, c) 
+        end
+    end
+    _wfConns = {}
+end
+
+local function startWalkFling()
+    stopWalkFling()
+    _wfActive = true
+    
+    table.insert(_wfConns, rs.Stepped:Connect(function()
+        if not _wfActive then return end
+        for _, p in ipairs(game.Players:GetPlayers()) do
+            if p ~= plr and p.Character then
+                for _, part in ipairs(p.Character:GetChildren()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
+            end
+        end
+    end))
+
+    local co = coroutine.create(function()
+        while _wfActive do
+            rs.Heartbeat:Wait()
+            local char = plr.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if not root then continue end
+            
+            local vel = root.Velocity
+            root.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
+            
+            rs.RenderStepped:Wait()
+            if root and root.Parent then root.Velocity = vel end
+            
+            rs.Stepped:Wait()
+            if root and root.Parent then 
+                root.Velocity = vel + Vector3.new(0, 0.1, 0) 
+            end
+        end
+    end)
 end)
