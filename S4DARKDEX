@@ -1,0 +1,14 @@
+-- Simple Script Dumper
+local count = 0
+for _, obj in pairs(game:GetDescendants()) do
+    if obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
+        pcall(function()
+            local code = decompile(obj)
+            if code and code ~= "" then
+                writefile(obj.Name .. "_dump.lua", code)
+                count = count + 1
+            end
+        end)
+    end
+end
+print("Dumped " .. count .. " scripts to your workspace folder.")
